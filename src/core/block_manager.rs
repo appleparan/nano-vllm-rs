@@ -249,7 +249,9 @@ impl BlockManager {
     ///
     /// The new reference count, or `None` if the block doesn't exist.
     pub fn decrement_ref(&mut self, block_id: usize) -> Option<usize> {
-        self.blocks.get_mut(&block_id).map(|block| block.decrement_ref())
+        self.blocks
+            .get_mut(&block_id)
+            .map(|block| block.decrement_ref())
     }
 
     // ========== Prefix Caching ==========

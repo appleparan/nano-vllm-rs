@@ -164,7 +164,7 @@ impl LayerKVCache {
         )?;
         let key_cache = key_cache.slice_scatter(
             &key_expanded.squeeze(0)?, // Remove the block dim we just scattered
-            1, // dim for slot
+            1,                         // dim for slot
             slot,
         )?;
 
@@ -178,16 +178,10 @@ impl LayerKVCache {
 
         let value_expanded = value.unsqueeze(0)?.unsqueeze(0)?;
 
-        let value_cache = self.value_cache.slice_scatter(
-            &value_expanded,
-            0,
-            block_id,
-        )?;
-        let value_cache = value_cache.slice_scatter(
-            &value_expanded.squeeze(0)?,
-            1,
-            slot,
-        )?;
+        let value_cache = self
+            .value_cache
+            .slice_scatter(&value_expanded, 0, block_id)?;
+        let value_cache = value_cache.slice_scatter(&value_expanded.squeeze(0)?, 1, slot)?;
 
         self.value_cache = value_cache;
         Ok(())
@@ -290,11 +284,11 @@ mod tests {
 
     fn test_config() -> KVCacheConfig {
         KVCacheConfig::new(
-            16,  // num_blocks
-            4,   // block_size
-            8,   // num_kv_heads
-            64,  // head_dim
-            2,   // num_layers
+            16, // num_blocks
+            4,  // block_size
+            8,  // num_kv_heads
+            64, // head_dim
+            2,  // num_layers
         )
     }
 

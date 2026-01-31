@@ -128,7 +128,11 @@ impl Sequence {
     }
 
     /// Create a new sequence with priority.
-    pub fn with_priority(seq_id: SequenceId, prompt_token_ids: Vec<u32>, priority: Priority) -> Self {
+    pub fn with_priority(
+        seq_id: SequenceId,
+        prompt_token_ids: Vec<u32>,
+        priority: Priority,
+    ) -> Self {
         let mut seq = Self::new(seq_id, prompt_token_ids);
         seq.priority = priority;
         seq
@@ -229,14 +233,15 @@ impl Sequence {
 
     /// Get the last token ID.
     pub fn last_token_id(&self) -> Option<u32> {
-        self.output_token_ids.last().copied()
+        self.output_token_ids
+            .last()
+            .copied()
             .or_else(|| self.prompt_token_ids.last().copied())
     }
 
     /// Mark tokens as prefilled.
     pub fn mark_prefilled(&mut self, num_tokens: usize) {
-        self.num_prefilled_tokens = (self.num_prefilled_tokens + num_tokens)
-            .min(self.prompt_len());
+        self.num_prefilled_tokens = (self.num_prefilled_tokens + num_tokens).min(self.prompt_len());
     }
 
     // ========== State transitions ==========
