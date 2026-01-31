@@ -418,15 +418,15 @@ while scheduler.has_unfinished_sequences() {
 
 ## Comparison with vLLM
 
-| Feature | vLLM | nano-vllm |
-|---------|------|-----------|
-| Continuous batching | Yes | Yes |
-| Priority scheduling | Yes | Yes |
-| Chunked prefill | Yes | Yes |
-| Preemption | Yes (sophisticated) | Yes (basic) |
-| Swapping to CPU | Yes | Partial (state only) |
-| Beam search support | Yes | No |
-| Multi-GPU | Yes | No |
+| Feature             | vLLM               | nano-vllm           |
+| ------------------- | ------------------ | ------------------- |
+| Continuous batching | Yes                | Yes                 |
+| Priority scheduling | Yes                | Yes                 |
+| Chunked prefill     | Yes                | Yes                 |
+| Preemption          | Yes (sophisticated)| Yes (basic)         |
+| Swapping to CPU     | Yes                | Partial (state only)|
+| Beam search support | Yes                | No                  |
+| Multi-GPU           | Yes                | No                  |
 
 ## References
 

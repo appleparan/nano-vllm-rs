@@ -17,6 +17,7 @@ Input tensor is projected by three matrices (Wq, Wk, Wv) to produce Q, K, V tens
 ![Masking and Softmax](https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/continuous_batching/masking_and_softmax.png)
 
 The attention mask controls which tokens can interact:
+
 - **Green**: Token can attend (True)
 - **White**: Token cannot attend (False)
 
@@ -49,6 +50,7 @@ The grey tokens are recomputed unnecessarily!
 ![KV Cache](https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/continuous_batching/kv_cache.png)
 
 With KV caching:
+
 - Only compute K, V for the **new token** (white)
 - Retrieve previous K, V from cache (grey)
 - Complexity reduces from O(n²) to O(n)
@@ -78,6 +80,7 @@ When prompts are too long for GPU memory, split into chunks:
 ![Padding](https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/continuous_batching/padding.png)
 
 Traditional batching pads all prompts to match the longest sequence:
+
 - Orange tokens are padding (`<pad>`)
 - Attention mask ensures padding doesn't affect computation
 - But compute is still wasted on padding!
@@ -87,6 +90,7 @@ Traditional batching pads all prompts to match the longest sequence:
 ![Batched Generation](https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/continuous_batching/batched_generation.png)
 
 Static batching over multiple iterations:
+
 1. **Top**: Prefill both prompts (padded to equal length)
 2. **Below**: Decode iterations generate tokens one at a time
 3. When one finishes (`<eos>`), its compute is wasted
@@ -96,6 +100,7 @@ Static batching over multiple iterations:
 ![Dynamic Batching](https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/continuous_batching/dynamic_batching.png)
 
 Dynamic batching swaps finished requests with new ones, but requires massive padding:
+
 - New prompt needs full prefill
 - Other prompts only decode (1 token)
 - With B=8 and n=100, we need ~693 padding tokens!
@@ -109,6 +114,7 @@ Instead of padding, concatenate prompts directly.
 ![Ragged Batching](https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/continuous_batching/ragged_batching.png)
 
 The attention mask prevents cross-sequence interaction:
+
 - Different tints of green show different sequences
 - White blocks prevent tokens from different sequences seeing each other
 - No padding tokens needed!
@@ -118,6 +124,7 @@ The attention mask prevents cross-sequence interaction:
 ![Continuous Batching](https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/blog/continuous_batching/continuous_batching.png)
 
 The complete continuous batching algorithm:
+
 1. Maintain a token budget (m tokens per batch)
 2. First: Add all decode sequences (1 token each)
 3. Then: Fill remaining space with prefill (chunked if needed)
@@ -129,11 +136,11 @@ The complete continuous batching algorithm:
 
 Continuous batching combines three techniques:
 
-| Technique | Purpose |
-|-----------|---------|
-| **KV Caching** | Avoid recomputing past token representations |
-| **Chunked Prefill** | Handle variable-length prompts within memory |
-| **Ragged Batching + Dynamic Scheduling** | Eliminate padding, keep GPU utilized |
+| Technique                                | Purpose                                       |
+| ---------------------------------------- | --------------------------------------------- |
+| **KV Caching**                           | Avoid recomputing past token representations  |
+| **Chunked Prefill**                      | Handle variable-length prompts within memory  |
+| **Ragged Batching + Dynamic Scheduling** | Eliminate padding, keep GPU utilized          |
 
 This is why services like ChatGPT can efficiently serve thousands of concurrent users.
 
