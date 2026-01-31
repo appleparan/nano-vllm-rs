@@ -73,23 +73,27 @@
 ## Stage 4: Scheduler (Continuous Batching)
 
 **Goal**: 연속 배칭 스케줄러 구현
-**Status**: Not Started
+**Status**: Complete
 
 ### Tasks
 
-1. `SchedulerConfig` (max_num_seqs, max_prefill_tokens, enable_preemption)
-2. `SchedulerOutputs` (prefill_seqs, decode_seqs, chunked_prefill_seqs)
-3. `Scheduler` 구현
-   - Waiting queue (priority heap)
+1. [x] `SchedulerConfig` (max_num_seqs, max_prefill_tokens, enable_preemption)
+2. [x] `SchedulerOutputs` (prefill_seqs, decode_seqs, prefill_chunk_sizes, preempted_seqs)
+3. [x] `Scheduler` 구현
+   - Waiting queue (BinaryHeap priority queue)
    - Running set 관리
-   - `schedule()` 메서드: 새 요청 admit, decode 대상 선정
-   - Preemption 로직
+   - `schedule()` 메서드: schedule_decode → allocate_running_blocks → schedule_prefill → handle_preemption
+   - Priority scheduling (priority DESC, arrival ASC)
+   - Chunked prefill 지원
+   - Preemption 로직 (lowest priority running → swapped)
 
 ### Success Criteria
 
-- [ ] 기본 스케줄링 테스트 통과
-- [ ] Priority scheduling 테스트 통과
-- [ ] Preemption 테스트 통과
+- [x] 기본 스케줄링 테스트 통과 (18 tests)
+- [x] Priority scheduling 테스트 통과
+- [x] Preemption 테스트 통과
+- [x] Chunked prefill 테스트 통과
+- [x] Resource limit 테스트 통과 (max_num_seqs, max_prefill_tokens, out_of_blocks)
 
 ---
 

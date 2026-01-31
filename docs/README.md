@@ -20,10 +20,10 @@ This project follows a bottom-up implementation approach, building from low-leve
 │        Stage 5-6: Qwen3 Model & PagedAttention             │
 │        (Neural Network Components)                          │
 ├─────────────────────────────────────────────────────────────┤
-│                    Stage 4: Scheduler                       │
-│                    (Continuous Batching)                    │
+│        Stage 4: Scheduler                 ← Current         │
+│        (Continuous Batching)                                │
 ├─────────────────────────────────────────────────────────────┤
-│        Stage 3: Sequence & KV Cache       ← Current         │
+│        Stage 3: Sequence & KV Cache                         │
 │        (Request Tracking & Tensor Storage)                  │
 ├─────────────────────────────────────────────────────────────┤
 │        Stage 2: Block & BlockManager                        │
@@ -79,15 +79,18 @@ On top of the memory management infrastructure, we implement:
 
 The Scheduler needs Sequence state to decide "which request to process", and the model needs KVCache to compute Attention.
 
-### Stage 4: Continuous Batching (Planned)
+### Stage 4: Continuous Batching
 
-**What will be implemented next:**
+- [Scheduler](scheduler.md) - Continuous batching, priority scheduling, preemption
 
-The Scheduler handles continuous batching for processing multiple requests concurrently:
+**Why this order?**
 
-- Select new requests from waiting queue (prefill)
-- Process existing requests from running set (decode)
-- Make preemption decisions when memory is insufficient
+With Sequence tracking requests and KVCache storing tensors, the Scheduler orchestrates them:
+
+1. **Scheduling Algorithm**: Priority queue for waiting, running set for active sequences
+2. **Continuous Batching**: Mix prefill and decode phases in single iteration
+3. **Resource Management**: Track block allocations, enforce limits (max_num_seqs, max_prefill_tokens)
+4. **Preemption**: Swap low-priority sequences when high-priority requests need memory
 
 ### Stage 5-10: Model & Engine (Planned)
 
@@ -133,12 +136,15 @@ src/
 ├── main.rs             # CLI entry point
 ├── error.rs            # Error types
 ├── config.rs           # Configuration types
-└── core/
+├── core/
+│   ├── mod.rs
+│   ├── block.rs        # Block, BlockTable
+│   ├── block_manager.rs # BlockManager with prefix caching
+│   ├── sequence.rs     # Sequence lifecycle
+│   └── kv_cache.rs     # KV tensor storage
+└── scheduler/
     ├── mod.rs
-    ├── block.rs        # Block, BlockTable
-    ├── block_manager.rs # BlockManager with prefix caching
-    ├── sequence.rs     # Sequence lifecycle
-    └── kv_cache.rs     # KV tensor storage
+    └── batch.rs        # Scheduler with continuous batching
 
 docs/
 ├── README.md           # This file
@@ -146,7 +152,8 @@ docs/
 ├── configuration.md    # Config types
 ├── errors.md           # Error handling
 ├── paged_attention.md  # Block/BlockTable/BlockManager
-└── sequence_kv_cache.md # Sequence/KVCache
+├── sequence_kv_cache.md # Sequence/KVCache
+└── scheduler.md        # Continuous batching scheduler
 ```
 
 ## References

@@ -18,3 +18,4 @@ pub mod speculative;
 
 pub use config::{EngineConfig, ModelConfig, SamplingConfig, SchedulerConfig};
 pub use error::{Error, Result};
+pub use scheduler::{Scheduler, SchedulerOutputs};
