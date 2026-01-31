@@ -171,12 +171,12 @@ For Qwen3-0.6B with 1024 blocks:
   - num_blocks: 1024
   - block_size: 16
   - num_kv_heads: 8 (GQA)
-  - head_dim: 64
+  - head_dim: 128 (explicit, not hidden_size/num_heads)
 
-  Key cache:   [1024, 16, 8, 64]  →  32 MB (float32)
-  Value cache: [1024, 16, 8, 64]  →  32 MB (float32)
-  Per layer: 64 MB
-  28 layers: 1.75 GB total
+  Key cache:   [1024, 16, 8, 128]  →  64 MB (float32)
+  Value cache: [1024, 16, 8, 128]  →  64 MB (float32)
+  Per layer: 128 MB
+  28 layers: 3.5 GB total
 ```
 
 ### Block-based Access
@@ -236,7 +236,7 @@ let config = KVCacheConfig::new(
     1024,  // num_blocks
     16,    // block_size
     8,     // num_kv_heads
-    64,    // head_dim
+    128,   // head_dim (Qwen3 uses 128, not hidden_size/num_heads=64)
     28,    // num_layers
 );
 
@@ -248,8 +248,8 @@ let layer_cache = cache.layer_mut(0)?;
 
 // Gather K/V for specific blocks
 let block_ids = vec![5, 12, 3];
-let keys = layer_cache.gather_keys(&block_ids)?;    // [3, 16, 8, 64]
-let values = layer_cache.gather_values(&block_ids)?; // [3, 16, 8, 64]
+let keys = layer_cache.gather_keys(&block_ids)?;    // [3, 16, 8, 128]
+let values = layer_cache.gather_values(&block_ids)?; // [3, 16, 8, 128]
 
 // Gather from all layers at once
 let all_keys = cache.gather_keys_all_layers(&block_ids)?;   // Vec of 28 tensors
@@ -320,18 +320,18 @@ Preemption (if needed):
 For Qwen3-0.6B serving:
 
   Per-token KV memory:
-    = 2 (K+V) × 28 layers × 8 heads × 64 dim × 4 bytes
-    = 114,688 bytes ≈ 112 KB per token
+    = 2 (K+V) × 28 layers × 8 heads × 128 dim × 4 bytes
+    = 229,376 bytes ≈ 224 KB per token
 
   For 1024 blocks × 16 tokens/block:
     = 16,384 tokens max
-    = 1.75 GB KV cache
+    = 3.5 GB KV cache
 
   GPU memory breakdown:
-    - Model weights: ~1.2 GB (float16)
-    - KV cache: ~1.75 GB
+    - Model weights: ~1.2 GB (bfloat16)
+    - KV cache: ~3.5 GB
     - Activations: ~0.5 GB
-    - Total: ~3.5 GB
+    - Total: ~5.2 GB
 ```
 
 ### Sequence Memory

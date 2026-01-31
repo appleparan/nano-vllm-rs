@@ -107,6 +107,9 @@ pub struct ModelConfig {
     pub num_attention_heads: usize,
     /// Number of key-value heads (for GQA).
     pub num_key_value_heads: usize,
+    /// Dimension per attention head.
+    /// Note: Qwen3 explicitly sets head_dim independent of hidden_size/num_heads.
+    pub head_dim: usize,
     /// RMSNorm epsilon.
     pub rms_norm_eps: f64,
     /// RoPE theta.
@@ -121,10 +124,11 @@ impl Default for ModelConfig {
         Self {
             vocab_size: 151936,
             hidden_size: 1024,
-            intermediate_size: 2816,
+            intermediate_size: 3072,
             num_hidden_layers: 28,
             num_attention_heads: 16,
             num_key_value_heads: 8,
+            head_dim: 128,
             rms_norm_eps: 1e-6,
             rope_theta: 1000000.0,
             max_position_embeddings: 40960,
@@ -133,11 +137,6 @@ impl Default for ModelConfig {
 }
 
 impl ModelConfig {
-    /// Head dimension (hidden_size / num_attention_heads).
-    pub fn head_dim(&self) -> usize {
-        self.hidden_size / self.num_attention_heads
-    }
-
     /// Number of query heads per KV head group (for GQA).
     pub fn num_kv_groups(&self) -> usize {
         self.num_attention_heads / self.num_key_value_heads

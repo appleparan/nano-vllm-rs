@@ -283,17 +283,17 @@ The KV cache is a large tensor accessed via block IDs:
 ```text
 KV Cache Shape: [num_blocks, block_size, num_kv_heads, head_dim]
 
-For Qwen3-0.6B (num_kv_heads=8, head_dim=64):
-  Key cache:   [1024, 16, 8, 64]
-  Value cache: [1024, 16, 8, 64]
+For Qwen3-0.6B (num_kv_heads=8, head_dim=128):
+  Key cache:   [1024, 16, 8, 128]
+  Value cache: [1024, 16, 8, 128]
 
 Accessing token at position p in sequence with BlockTable [5, 12, 3]:
   logical_block = p // 16
   slot = p % 16
   physical_block = block_table[logical_block]
 
-  K[physical_block, slot, :, :]  # Shape: [8, 64]
-  V[physical_block, slot, :, :]  # Shape: [8, 64]
+  K[physical_block, slot, :, :]  # Shape: [8, 128]
+  V[physical_block, slot, :, :]  # Shape: [8, 128]
 ```
 
 ## Integration with Attention

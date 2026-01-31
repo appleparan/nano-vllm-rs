@@ -77,10 +77,11 @@ Qwen3 model architecture.
 ModelConfig {
     vocab_size: 151936,
     hidden_size: 1024,
-    intermediate_size: 2816,
+    intermediate_size: 3072,
     num_hidden_layers: 28,
     num_attention_heads: 16,
     num_key_value_heads: 8,  // GQA
+    head_dim: 128,           // Explicit, not hidden_size/num_heads
     rms_norm_eps: 1e-6,
     rope_theta: 1000000.0,
     max_position_embeddings: 40960,
@@ -92,6 +93,6 @@ Default values are for Qwen3-0.6B.
 ### Derived Values
 
 ```rust
-head_dim = hidden_size / num_attention_heads  // 1024 / 16 = 64
+// Note: Qwen3 uses explicit head_dim=128, not the typical hidden_size/num_heads=64
 num_kv_groups = num_attention_heads / num_key_value_heads  // 16 / 8 = 2
 ```
