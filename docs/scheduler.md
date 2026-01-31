@@ -6,22 +6,22 @@ This document explains the Scheduler implementation in nano-vllm, which provides
 
 The scheduler manages the lifecycle of inference requests, deciding which sequences to process in each iteration based on available resources and priorities.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Scheduler Flow                               │
-└─────────────────────────────────────────────────────────────────────┘
+```text
+┌───────────────────────────────────────────────────────────────┐
+│                       Scheduler Flow                          │
+└───────────────────────────────────────────────────────────────┘
 
-  add_sequence()                                  schedule()
-       │                                              │
-       ▼                                              ▼
-  ┌─────────┐                                   ┌─────────────┐
-  │ Waiting │ ──────────────────────────────────► │  Running   │
-  │  Queue  │     (when resources available)      │    Set     │
-  └─────────┘                                     └─────────────┘
-       ▲                                              │
-       │              preempt()                       │
-       └──────────────────────────────────────────────┘
-                  (when memory pressure)
+  add_sequence()                              schedule()
+       │                                           │
+       ▼                                           ▼
+  ┌─────────┐                               ┌───────────┐
+  │ Waiting │ ─────────────────────────────►│  Running  │
+  │  Queue  │   (when resources available)  │    Set    │
+  └─────────┘                               └───────────┘
+       ▲                                           │
+       │             preempt()                     │
+       └───────────────────────────────────────────┘
+                 (when memory pressure)
 ```
 
 ## Why Continuous Batching?
@@ -30,12 +30,13 @@ The scheduler manages the lifecycle of inference requests, deciding which sequen
 
 Traditional batching pads all prompts to match the longest sequence:
 
-```
+```text
 Static Batching (with padding):
-┌────────────────────────────────────────────────────────┐
-│ Prompt 0: [<pad><pad><pad><pad> I  am sure this will ] │  ← 4 padding tokens wasted
-│ Prompt 1: [<bos> How are you doing today ?      <eos>] │
-└────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ Prompt 0: [<pad><pad><pad><pad> I  am sure this will ]       │
+│ Prompt 1: [<bos> How are you doing today ?      <eos>]       │
+└──────────────────────────────────────────────────────────────┘
+           ↑ 4 padding tokens wasted
 
 Problems:
 - Compute wasted on padding tokens
@@ -53,19 +54,20 @@ Continuous batching combines three key techniques:
 2. **Chunked Prefill**: Split long prompts into memory-fitting chunks
 3. **Ragged Batching + Dynamic Scheduling**: Concatenate variable-length sequences without padding
 
-```
+```text
 Continuous Batching (no padding):
-┌────────────────────────────────────────────────────────┐
-│ [<bos> I am sure this will] [<bos> How are you <eos>]  │
-│         Seq 0 (decode)              Seq 1 (prefill)    │
-└────────────────────────────────────────────────────────┘
-            ↓ attention mask controls interaction
-┌─────────────────────────────┐
-│ ■ ■ ■ ■ ■ ■ □ □ □ □ □       │  Seq 0 tokens see only Seq 0
-│ ■ ■ ■ ■ ■ ■ □ □ □ □ □       │
-│ □ □ □ □ □ □ ■ ■ ■ ■ ■       │  Seq 1 tokens see only Seq 1
-│ □ □ □ □ □ □ ■ ■ ■ ■ ■       │
-└─────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ [<bos> I am sure this will] [<bos> How are you <eos>]        │
+│         Seq 0 (decode)              Seq 1 (prefill)          │
+└──────────────────────────────────────────────────────────────┘
+           ↓ attention mask controls interaction
+
+┌───────────────────────────┐
+│ ■ ■ ■ ■ ■ ■ □ □ □ □ □     │  Seq 0 tokens see only Seq 0
+│ ■ ■ ■ ■ ■ ■ □ □ □ □ □     │
+│ □ □ □ □ □ □ ■ ■ ■ ■ ■     │  Seq 1 tokens see only Seq 1
+│ □ □ □ □ □ □ ■ ■ ■ ■ ■     │
+└───────────────────────────┘
 ■ = True (can attend)  □ = False (cannot attend)
 ```
 
@@ -77,27 +79,25 @@ Understanding these two phases is crucial for efficient scheduling.
 
 Process all prompt tokens to populate the KV cache:
 
-```
+```text
 Input: "I am sure this project"
-       ↓
-┌─────────────────────────────────────────────┐
-│  Tokens:  [<bos>, I, am, sure, this, pro, ject]      │
-│                                                       │
-│  Attention: Full causal attention over all tokens     │
-│                                                       │
-│  ┌───┬───┬───┬───┬───┬───┬───┐                       │
-│  │ ■ │   │   │   │   │   │   │  <bos>                │
-│  │ ■ │ ■ │   │   │   │   │   │  I                    │
-│  │ ■ │ ■ │ ■ │   │   │   │   │  am                   │
-│  │ ■ │ ■ │ ■ │ ■ │   │   │   │  sure                 │
-│  │ ■ │ ■ │ ■ │ ■ │ ■ │   │   │  this                 │
-│  │ ■ │ ■ │ ■ │ ■ │ ■ │ ■ │   │  pro                  │
-│  │ ■ │ ■ │ ■ │ ■ │ ■ │ ■ │ ■ │  ject → predicts "will"│
-│  └───┴───┴───┴───┴───┴───┴───┘                       │
-│                                                       │
-│  KV Cache: Stores K,V for all 7 tokens               │
-│  Output: Next token prediction from last position     │
-└─────────────────────────────────────────────────────┘
+
+Tokens: [<bos>, I, am, sure, this, pro, ject]
+
+Attention: Full causal attention over all tokens
+
+  ┌───┬───┬───┬───┬───┬───┬───┐
+  │ ■ │   │   │   │   │   │   │  <bos>
+  │ ■ │ ■ │   │   │   │   │   │  I
+  │ ■ │ ■ │ ■ │   │   │   │   │  am
+  │ ■ │ ■ │ ■ │ ■ │   │   │   │  sure
+  │ ■ │ ■ │ ■ │ ■ │ ■ │   │   │  this
+  │ ■ │ ■ │ ■ │ ■ │ ■ │ ■ │   │  pro
+  │ ■ │ ■ │ ■ │ ■ │ ■ │ ■ │ ■ │  ject → predicts "will"
+  └───┴───┴───┴───┴───┴───┴───┘
+
+KV Cache: Stores K,V for all 7 tokens
+Output: Next token prediction from last position
 
 Complexity: O(n²) for attention computation
 ```
@@ -106,85 +106,83 @@ Complexity: O(n²) for attention computation
 
 Generate one token at a time using cached K/V states:
 
-```
+```text
 After prefill, generate "will":
-       ↓
-┌─────────────────────────────────────────────┐
-│  New token: [will]                                    │
-│                                                       │
-│  Q: Only compute for new token                       │
-│  K,V: Retrieve from cache + append new               │
-│                                                       │
-│  ┌───┬───┬───┬───┬───┬───┬───┬───┐                  │
-│  │ ■ │ ■ │ ■ │ ■ │ ■ │ ■ │ ■ │ ■ │  will → "be"     │
-│  └───┴───┴───┴───┴───┴───┴───┴───┘                  │
-│   ↑                               ↑                   │
-│   └── From KV cache ──────────────┘                  │
-│                                                       │
-│  Only 1 row of attention computed!                   │
-└─────────────────────────────────────────────────────┘
+
+New token: [will]
+
+Q: Only compute for new token
+K,V: Retrieve from cache + append new
+
+  ┌───┬───┬───┬───┬───┬───┬───┬───┐
+  │ ■ │ ■ │ ■ │ ■ │ ■ │ ■ │ ■ │ ■ │  will → "be"
+  └───┴───┴───┴───┴───┴───┴───┴───┘
+    ↑                           ↑
+    └── From KV cache ──────────┘
+
+Only 1 row of attention computed!
 
 Complexity: O(n) - only 1 query token attends to n cached keys
 ```
 
 ### Why This Matters for Scheduling
 
-```
+```text
 Token budget: m = 10 tokens per iteration
 
 Strategy: Prioritize decode (1 token each), fill remainder with prefill
 
 Iteration 1:
-┌────────────────────────────────────────────────────────┐
-│ Decode: A(1) + B(1) + C(1) = 3 tokens                  │
-│ Prefill: D(7 tokens, chunked to fit) = 7 tokens        │
-│ Total: 10 tokens ✓                                     │
-└────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│ Decode: A(1) + B(1) + C(1) = 3 tokens            │
+│ Prefill: D(7 tokens, chunked to fit) = 7 tokens  │
+│ Total: 10 tokens                                 │
+└──────────────────────────────────────────────────┘
 
 Iteration 2:
-┌────────────────────────────────────────────────────────┐
-│ Decode: A(1) + B(1) + C(1) + D(1) = 4 tokens           │
-│ Prefill: E(6 tokens) = 6 tokens                        │
-│ Total: 10 tokens ✓                                     │
-└────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│ Decode: A(1) + B(1) + C(1) + D(1) = 4 tokens     │
+│ Prefill: E(6 tokens) = 6 tokens                  │
+│ Total: 10 tokens                                 │
+└──────────────────────────────────────────────────┘
 ```
 
 ## Continuous Batching in Action
 
 Here's how continuous batching handles multiple requests over time:
 
-```
+```text
 Time →
-────────────────────────────────────────────────────────────────────────
+──────────────────────────────────────────────────────────────────
 
 Iteration 1: Initial batch
-┌─────────────────────────────────────────────────────────────────────┐
-│  Seq A: [prefill ████████]                                           │
-│  Seq B: [prefill ████]                                               │
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│  Seq A: [prefill ████████]                                     │
+│  Seq B: [prefill ████]                                         │
+└────────────────────────────────────────────────────────────────┘
 
 Iteration 2: A,B in decode, C joins with prefill
-┌─────────────────────────────────────────────────────────────────────┐
-│  Seq A: [decode █]                                                   │
-│  Seq B: [decode █]                                                   │
-│  Seq C: [prefill ██████]  ← NEW! Joins immediately                  │
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│  Seq A: [decode █]                                             │
+│  Seq B: [decode █]                                             │
+│  Seq C: [prefill ██████]  ← NEW! Joins immediately             │
+└────────────────────────────────────────────────────────────────┘
 
 Iteration 3: B finishes, D joins
-┌─────────────────────────────────────────────────────────────────────┐
-│  Seq A: [decode █]                                                   │
-│  Seq B: [<eos>] → FINISHED, resources released                       │
-│  Seq C: [decode █]                                                   │
-│  Seq D: [prefill ████]  ← NEW! Fills B's slot                       │
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│  Seq A: [decode █]                                             │
+│  Seq B: [<eos>] → FINISHED, resources released                 │
+│  Seq C: [decode █]                                             │
+│  Seq D: [prefill ████]  ← NEW! Fills B's slot                  │
+└────────────────────────────────────────────────────────────────┘
 
 Iteration 4: Continues...
-┌─────────────────────────────────────────────────────────────────────┐
-│  Seq A: [decode █]                                                   │
-│  Seq C: [decode █]                                                   │
-│  Seq D: [decode █]                                                   │
-│  Seq E: [prefill ██████]  ← More requests can join                  │
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│  Seq A: [decode █]                                             │
+│  Seq C: [decode █]                                             │
+│  Seq D: [decode █]                                             │
+│  Seq E: [prefill ██████]  ← More requests can join             │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 **Key insight**: No sequence ever waits for another to finish. The GPU stays fully utilized.
@@ -193,20 +191,21 @@ Iteration 4: Continues...
 
 When prompts are too long to fit in memory, split them into chunks:
 
-```
+```text
 Long prompt: 100 tokens, but memory only fits 40 tokens
-             ↓
-┌────────────────────────────────────────────────────────┐
-│ Chunk 1: tokens[0:40]   → KV cache stores K,V[0:40]    │
-│ Chunk 2: tokens[40:80]  → KV cache stores K,V[0:80]    │
-│ Chunk 3: tokens[80:100] → KV cache stores K,V[0:100]   │
-└────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────┐
+│ Chunk 1: tokens[0:40]   → KV cache stores K,V[0:40]            │
+│ Chunk 2: tokens[40:80]  → KV cache stores K,V[0:80]            │
+│ Chunk 3: tokens[80:100] → KV cache stores K,V[0:100]           │
+└────────────────────────────────────────────────────────────────┘
 
 Each chunk uses cached K,V from previous chunks.
 Other sequences can run between chunks!
 ```
 
 Benefits:
+
 - Long prompts don't block other requests
 - Memory usage stays within limits
 - Better latency distribution
@@ -214,6 +213,7 @@ Benefits:
 ## Priority Scheduling
 
 Sequences are scheduled based on:
+
 1. **Priority** (higher first) - User-defined importance
 2. **Arrival Order** (earlier first) - FIFO within same priority
 
@@ -230,14 +230,15 @@ impl Ord for PriorityEntry {
 ```
 
 Example:
-```
+
+```text
 Waiting Queue (BinaryHeap, highest priority first):
-┌─────────────────────────────────────────────────────────────────────┐
-│ 1. Seq X (priority=10, arrived=100)  ← High priority, scheduled first│
-│ 2. Seq Y (priority=0,  arrived=50)   ← Normal priority, early arrival│
-│ 3. Seq Z (priority=0,  arrived=80)   ← Normal priority, late arrival │
-│ 4. Seq W (priority=-5, arrived=10)   ← Low priority, even if earliest│
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│ 1. Seq X (priority=10, arrived=100) ← High priority first      │
+│ 2. Seq Y (priority=0,  arrived=50)  ← Normal, early arrival    │
+│ 3. Seq Z (priority=0,  arrived=80)  ← Normal, late arrival     │
+│ 4. Seq W (priority=-5, arrived=10)  ← Low priority, even early │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ## Scheduler Components
@@ -307,53 +308,53 @@ pub fn schedule(&mut self) -> SchedulerOutputs {
 
 The scheduler respects several limits:
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Resource Budget                                  │
-├─────────────────────────────────────────────────────────────────────┤
-│ max_num_seqs: 4         │ Maximum concurrent sequences              │
-│ max_prefill_tokens: 100 │ Maximum tokens to prefill per iteration  │
-│ num_blocks: 1024        │ Total KV cache blocks available          │
-└─────────────────────────────────────────────────────────────────────┘
+```text
+┌────────────────────────────────────────────────────────────────┐
+│                     Resource Budget                            │
+├────────────────────────────────────────────────────────────────┤
+│ max_num_seqs: 4         │ Maximum concurrent sequences         │
+│ max_prefill_tokens: 100 │ Maximum tokens to prefill/iteration  │
+│ num_blocks: 1024        │ Total KV cache blocks available      │
+└────────────────────────────────────────────────────────────────┘
 
 Admission Decision:
-┌─────────────────────────────────────────────────────────────────────┐
-│ Can admit new sequence?                                              │
-│                                                                      │
-│ ✓ num_sequences + pending < max_num_seqs                            │
-│ ✓ num_prefill_tokens + new_tokens < max_prefill_tokens              │
-│ ✓ block_manager.can_allocate(pending_blocks + blocks_needed)         │
-│                                                                      │
-│ All conditions must be true to admit.                               │
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│ Can admit new sequence?                                        │
+│                                                                │
+│ ✓ num_sequences + pending < max_num_seqs                       │
+│ ✓ num_prefill_tokens + new_tokens < max_prefill_tokens         │
+│ ✓ block_manager.can_allocate(pending_blocks + blocks_needed)   │
+│                                                                │
+│ All conditions must be true to admit.                          │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ### Preemption
 
 When under memory pressure with high-priority requests waiting:
 
-```
+```text
 Before Preemption:
-┌─────────────────────────────────────────────────────────────────────┐
-│ Running: [A(priority=-10), B(priority=0), C(priority=0)]            │
-│ Waiting: [X(priority=10)]  ← High priority, but no memory!          │
-│ Free Blocks: 0                                                       │
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│ Running: [A(priority=-10), B(priority=0), C(priority=0)]       │
+│ Waiting: [X(priority=10)]  ← High priority, but no memory!     │
+│ Free Blocks: 0                                                 │
+└────────────────────────────────────────────────────────────────┘
 
 Preemption Decision:
-┌─────────────────────────────────────────────────────────────────────┐
-│ 1. Find lowest priority running: A (priority=-10)                   │
-│ 2. Free A's blocks → return to block pool                           │
-│ 3. Move A to swapped state                                          │
-│ 4. Now X can be admitted!                                           │
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│ 1. Find lowest priority running: A (priority=-10)              │
+│ 2. Free A's blocks → return to block pool                      │
+│ 3. Move A to swapped state                                     │
+│ 4. Now X can be admitted!                                      │
+└────────────────────────────────────────────────────────────────┘
 
 After Preemption:
-┌─────────────────────────────────────────────────────────────────────┐
-│ Running: [B(priority=0), C(priority=0), X(priority=10)]             │
-│ Swapped: [A(priority=-10)]  ← Will resume when memory available     │
-│ Free Blocks: Available for X                                        │
-└─────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│ Running: [B(priority=0), C(priority=0), X(priority=10)]        │
+│ Swapped: [A(priority=-10)]  ← Will resume when memory available│
+│ Free Blocks: Available for X                                   │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ## Configuration

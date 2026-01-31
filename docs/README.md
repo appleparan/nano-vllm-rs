@@ -82,6 +82,7 @@ The Scheduler needs Sequence state to decide "which request to process", and the
 ### Stage 4: Continuous Batching
 
 - [Scheduler](scheduler.md) - Continuous batching, priority scheduling, preemption
+- [Visual Guide](continuous_batching_visual.md) - Illustrated explanation with HuggingFace blog diagrams
 
 **Why this order?**
 
