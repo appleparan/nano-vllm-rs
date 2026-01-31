@@ -182,8 +182,13 @@ mod tests {
 
         // Create random q and k
         let q = Tensor::randn(0.0f32, 1.0, (batch, seq_len, num_heads, head_dim), &device).unwrap();
-        let k =
-            Tensor::randn(0.0f32, 1.0, (batch, seq_len, num_kv_heads, head_dim), &device).unwrap();
+        let k = Tensor::randn(
+            0.0f32,
+            1.0,
+            (batch, seq_len, num_kv_heads, head_dim),
+            &device,
+        )
+        .unwrap();
 
         let (q_rot, k_rot) = rope.apply(&q, &k, 0).unwrap();
 

@@ -344,9 +344,7 @@ fn create_causal_mask(seq_len: usize, kv_seq_len: usize, device: &Device) -> Res
     let neg_inf = f32::NEG_INFINITY;
 
     let mask: Vec<f32> = (0..seq_len)
-        .flat_map(|i| {
-            (0..kv_seq_len).map(move |j| if j > i { neg_inf } else { 0.0f32 })
-        })
+        .flat_map(|i| (0..kv_seq_len).map(move |j| if j > i { neg_inf } else { 0.0f32 }))
         .collect();
 
     Ok(Tensor::from_vec(mask, (1, 1, seq_len, kv_seq_len), device)?)
@@ -367,24 +365,30 @@ fn create_decode_causal_mask(
     let mask: Vec<f32> = (0..num_new_tokens)
         .flat_map(|i| {
             let query_pos = cached_len + i;
-            (0..context_len).map(move |key_pos| {
-                if key_pos > query_pos {
-                    neg_inf
-                } else {
-                    0.0f32
-                }
-            })
+            (0..context_len).map(
+                move |key_pos| {
+                    if key_pos > query_pos {
+                        neg_inf
+                    } else {
+                        0.0f32
+                    }
+                },
+            )
         })
         .collect();
 
-    Ok(Tensor::from_vec(mask, (1, 1, num_new_tokens, context_len), device)?)
+    Ok(Tensor::from_vec(
+        mask,
+        (1, 1, num_new_tokens, context_len),
+        device,
+    )?)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use candle_core::DType;
     use crate::core::kv_cache::KVCacheConfig;
+    use candle_core::DType;
 
     fn test_device() -> Device {
         Device::Cpu
@@ -399,8 +403,13 @@ mod tests {
         let num_kv_heads = 2;
         let head_dim = 16;
 
-        let q = Tensor::randn(0.0f32, 1.0, (batch_size, seq_len, num_heads, head_dim), &device)
-            .unwrap();
+        let q = Tensor::randn(
+            0.0f32,
+            1.0,
+            (batch_size, seq_len, num_heads, head_dim),
+            &device,
+        )
+        .unwrap();
         let k = Tensor::randn(
             0.0f32,
             1.0,
@@ -419,10 +428,7 @@ mod tests {
         let scale = 1.0 / (head_dim as f64).sqrt();
         let output = prefill_attention(&q, &k, &v, num_heads, num_kv_heads, scale, true).unwrap();
 
-        assert_eq!(
-            output.dims(),
-            &[batch_size, seq_len, num_heads * head_dim]
-        );
+        assert_eq!(output.dims(), &[batch_size, seq_len, num_heads * head_dim]);
     }
 
     #[test]
@@ -488,8 +494,7 @@ mod tests {
         let context_len = 6; // Using 6 out of 8 available slots
 
         // Query for decode: 1 new token
-        let query =
-            Tensor::randn(0.0f32, 1.0, (1, 1, num_heads, head_dim), &device).unwrap();
+        let query = Tensor::randn(0.0f32, 1.0, (1, 1, num_heads, head_dim), &device).unwrap();
 
         let scale = 1.0 / (head_dim as f64).sqrt();
         let output = paged_attention(
@@ -552,16 +557,22 @@ mod tests {
 
         // K/V for 3 tokens
         let key = Tensor::ones((1, 3, num_kv_heads, head_dim), DType::F32, &device).unwrap();
-        let value =
-            (Tensor::ones((1, 3, num_kv_heads, head_dim), DType::F32, &device).unwrap() * 2.0)
-                .unwrap();
+        let value = (Tensor::ones((1, 3, num_kv_heads, head_dim), DType::F32, &device).unwrap()
+            * 2.0)
+            .unwrap();
 
         // Slot mapping: tokens go to slots 0, 1, 4 (second block, first slot)
         let slot_mapping = vec![0, 1, 4];
 
-        let (new_key_cache, new_value_cache) =
-            write_kv_to_cache(&key, &value, &key_cache, &value_cache, &slot_mapping, block_size)
-                .unwrap();
+        let (new_key_cache, new_value_cache) = write_kv_to_cache(
+            &key,
+            &value,
+            &key_cache,
+            &value_cache,
+            &slot_mapping,
+            block_size,
+        )
+        .unwrap();
 
         // Verify shapes
         assert_eq!(
@@ -621,8 +632,7 @@ mod tests {
 
         let context_len = 10; // Using 10 out of 12 available slots
 
-        let query =
-            Tensor::randn(0.0f32, 1.0, (1, 1, num_heads, head_dim), &device).unwrap();
+        let query = Tensor::randn(0.0f32, 1.0, (1, 1, num_heads, head_dim), &device).unwrap();
 
         let scale = 1.0 / (head_dim as f64).sqrt();
         let output = paged_attention(

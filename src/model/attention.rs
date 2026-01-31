@@ -118,17 +118,34 @@ impl Qwen3Attention {
         let scale_init = 0.02;
 
         // Q, K, V, O projections
-        let q_weight = Tensor::randn(0.0f32, scale_init, (num_heads * head_dim, hidden_size), device)?
-            .to_dtype(dtype)?;
-        let k_weight =
-            Tensor::randn(0.0f32, scale_init, (num_kv_heads * head_dim, hidden_size), device)?
-                .to_dtype(dtype)?;
-        let v_weight =
-            Tensor::randn(0.0f32, scale_init, (num_kv_heads * head_dim, hidden_size), device)?
-                .to_dtype(dtype)?;
-        let o_weight =
-            Tensor::randn(0.0f32, scale_init, (hidden_size, num_heads * head_dim), device)?
-                .to_dtype(dtype)?;
+        let q_weight = Tensor::randn(
+            0.0f32,
+            scale_init,
+            (num_heads * head_dim, hidden_size),
+            device,
+        )?
+        .to_dtype(dtype)?;
+        let k_weight = Tensor::randn(
+            0.0f32,
+            scale_init,
+            (num_kv_heads * head_dim, hidden_size),
+            device,
+        )?
+        .to_dtype(dtype)?;
+        let v_weight = Tensor::randn(
+            0.0f32,
+            scale_init,
+            (num_kv_heads * head_dim, hidden_size),
+            device,
+        )?
+        .to_dtype(dtype)?;
+        let o_weight = Tensor::randn(
+            0.0f32,
+            scale_init,
+            (hidden_size, num_heads * head_dim),
+            device,
+        )?
+        .to_dtype(dtype)?;
 
         let q_proj = Linear::new(q_weight, None);
         let k_proj = Linear::new(k_weight, None);
@@ -261,7 +278,8 @@ impl Qwen3Attention {
         // 12. Transpose back and reshape
         let attn_output = attn_output.transpose(1, 2)?.contiguous()?;
         // [batch, seq_len, num_heads, head_dim]
-        let attn_output = attn_output.reshape((batch_size, seq_len, self.num_heads * self.head_dim))?;
+        let attn_output =
+            attn_output.reshape((batch_size, seq_len, self.num_heads * self.head_dim))?;
 
         // 13. Output projection
         self.o_proj.forward(&attn_output)
@@ -321,13 +339,15 @@ impl Qwen3Attention {
             let mask: Vec<f32> = (0..seq_len)
                 .flat_map(|i| {
                     let query_pos = start_pos + i;
-                    (0..kv_seq_len).map(move |key_pos| {
-                        if key_pos > query_pos {
-                            neg_inf
-                        } else {
-                            0.0f32
-                        }
-                    })
+                    (0..kv_seq_len).map(
+                        move |key_pos| {
+                            if key_pos > query_pos {
+                                neg_inf
+                            } else {
+                                0.0f32
+                            }
+                        },
+                    )
                 })
                 .collect();
             Tensor::from_vec(mask, (1, 1, seq_len, kv_seq_len), device)
@@ -347,13 +367,13 @@ mod tests {
     fn test_attention_creation() {
         let device = test_device();
         let attn = Qwen3Attention::new_random(
-            64,     // hidden_size
-            4,      // num_heads
-            2,      // num_kv_heads
-            16,     // head_dim
-            1024,   // max_seq_len
+            64,      // hidden_size
+            4,       // num_heads
+            2,       // num_kv_heads
+            16,      // head_dim
+            1024,    // max_seq_len
             10000.0, // rope_theta
-            1e-6,   // rms_norm_eps
+            1e-6,    // rms_norm_eps
             DType::F32,
             &device,
         )
@@ -444,10 +464,9 @@ mod tests {
     #[test]
     fn test_repeat_kv() {
         let device = test_device();
-        let attn = Qwen3Attention::new_random(
-            64, 4, 2, 16, 1024, 10000.0, 1e-6, DType::F32, &device,
-        )
-        .unwrap();
+        let attn =
+            Qwen3Attention::new_random(64, 4, 2, 16, 1024, 10000.0, 1e-6, DType::F32, &device)
+                .unwrap();
 
         // Input: [batch=1, seq=4, num_kv_heads=2, head_dim=16]
         let x = Tensor::randn(0.0f32, 1.0, (1, 4, 2, 16), &device).unwrap();
@@ -461,10 +480,9 @@ mod tests {
     #[test]
     fn test_causal_mask_prefill() {
         let device = test_device();
-        let attn = Qwen3Attention::new_random(
-            64, 4, 2, 16, 1024, 10000.0, 1e-6, DType::F32, &device,
-        )
-        .unwrap();
+        let attn =
+            Qwen3Attention::new_random(64, 4, 2, 16, 1024, 10000.0, 1e-6, DType::F32, &device)
+                .unwrap();
 
         let mask = attn.create_causal_mask(4, 4, 0, &device).unwrap();
         let mask_vals: Vec<f32> = mask.flatten_all().unwrap().to_vec1().unwrap();
@@ -483,10 +501,9 @@ mod tests {
     #[test]
     fn test_causal_mask_decode() {
         let device = test_device();
-        let attn = Qwen3Attention::new_random(
-            64, 4, 2, 16, 1024, 10000.0, 1e-6, DType::F32, &device,
-        )
-        .unwrap();
+        let attn =
+            Qwen3Attention::new_random(64, 4, 2, 16, 1024, 10000.0, 1e-6, DType::F32, &device)
+                .unwrap();
 
         // Decode: seq_len=1, kv_seq_len=5, start_pos=4
         let mask = attn.create_causal_mask(1, 5, 4, &device).unwrap();

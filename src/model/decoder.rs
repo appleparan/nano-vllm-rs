@@ -187,9 +187,9 @@ impl Qwen3DecoderLayer {
         // First residual block: Attention
         let residual = hidden_states.clone();
         let hidden_states = self.input_layernorm.forward(hidden_states)?;
-        let hidden_states = self
-            .self_attn
-            .forward(&hidden_states, start_pos, kv_cache, attention_mask)?;
+        let hidden_states =
+            self.self_attn
+                .forward(&hidden_states, start_pos, kv_cache, attention_mask)?;
         let hidden_states = (residual + hidden_states)?;
 
         // Second residual block: MLP
@@ -212,14 +212,14 @@ mod tests {
     fn test_decoder_layer_creation() {
         let device = test_device();
         let layer = Qwen3DecoderLayer::new_random(
-            64,     // hidden_size
-            256,    // intermediate_size
-            4,      // num_heads
-            2,      // num_kv_heads
-            16,     // head_dim
-            1024,   // max_seq_len
+            64,      // hidden_size
+            256,     // intermediate_size
+            4,       // num_heads
+            2,       // num_kv_heads
+            16,      // head_dim
+            1024,    // max_seq_len
             10000.0, // rope_theta
-            1e-6,   // rms_norm_eps
+            1e-6,    // rms_norm_eps
             DType::F32,
             &device,
         )
@@ -288,13 +288,17 @@ mod tests {
             Tensor::zeros((1, 0, num_kv_heads, head_dim), DType::F32, &device).unwrap(),
         );
 
-        let output1 = layer.forward(&x_prefill, 0, Some(&mut kv_cache), None).unwrap();
+        let output1 = layer
+            .forward(&x_prefill, 0, Some(&mut kv_cache), None)
+            .unwrap();
         assert_eq!(output1.dims(), &[1, 4, hidden_size]);
         assert_eq!(kv_cache.0.dims(), &[1, 4, num_kv_heads, head_dim]);
 
         // Decode
         let x_decode = Tensor::randn(0.0f32, 0.1, (1, 1, hidden_size), &device).unwrap();
-        let output2 = layer.forward(&x_decode, 4, Some(&mut kv_cache), None).unwrap();
+        let output2 = layer
+            .forward(&x_decode, 4, Some(&mut kv_cache), None)
+            .unwrap();
         assert_eq!(output2.dims(), &[1, 1, hidden_size]);
         assert_eq!(kv_cache.0.dims(), &[1, 5, num_kv_heads, head_dim]);
     }
@@ -324,7 +328,13 @@ mod tests {
         let output = layer.forward(&x, 0, None, None).unwrap();
 
         // Check output is finite and reasonable
-        let output_sum: f32 = output.abs().unwrap().sum_all().unwrap().to_scalar().unwrap();
+        let output_sum: f32 = output
+            .abs()
+            .unwrap()
+            .sum_all()
+            .unwrap()
+            .to_scalar()
+            .unwrap();
         assert!(output_sum.is_finite());
         assert!(output_sum > 0.0);
     }

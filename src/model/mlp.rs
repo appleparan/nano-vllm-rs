@@ -182,11 +182,11 @@ mod tests {
         let batch_size = 2;
         let seq_len = 4;
 
-        let mlp = Qwen3Mlp::new_random(hidden_size, intermediate_size, DType::F32, &device).unwrap();
+        let mlp =
+            Qwen3Mlp::new_random(hidden_size, intermediate_size, DType::F32, &device).unwrap();
 
         // Input: [batch, seq_len, hidden_size]
-        let x =
-            Tensor::randn(0.0f32, 1.0, (batch_size, seq_len, hidden_size), &device).unwrap();
+        let x = Tensor::randn(0.0f32, 1.0, (batch_size, seq_len, hidden_size), &device).unwrap();
 
         let output = mlp.forward(&x).unwrap();
 
@@ -201,7 +201,8 @@ mod tests {
         let intermediate_size = 128;
         let seq_len = 8;
 
-        let mlp = Qwen3Mlp::new_random(hidden_size, intermediate_size, DType::F32, &device).unwrap();
+        let mlp =
+            Qwen3Mlp::new_random(hidden_size, intermediate_size, DType::F32, &device).unwrap();
 
         // 2D input: [seq_len, hidden_size]
         let x = Tensor::randn(0.0f32, 1.0, (seq_len, hidden_size), &device).unwrap();
