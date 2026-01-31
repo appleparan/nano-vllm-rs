@@ -18,13 +18,13 @@
 
 ## Stage 2: Block & BlockManager (PagedAttention 기반)
 **Goal**: OS 가상 메모리 스타일의 블록 관리 시스템 구현
-**Status**: In Progress
+**Status**: Complete
 
 ### Tasks
 1. [x] `Block` 구조체 (block_id, block_size, ref_count, prefix_hash)
 2. [x] `BlockTable` 구조체 (logical -> physical block mapping)
 3. [x] `hash_token_block` 함수 (prefix caching용 해시)
-4. [ ] `BlockManager` 구현
+4. [x] `BlockManager` 구현
    - Free list 기반 O(1) allocation/deallocation
    - Reference counting
    - Prefix caching (hash 기반)
@@ -32,8 +32,8 @@
 ### Success Criteria
 - [x] Block 생성/ref_count 테스트 통과
 - [x] BlockTable slot mapping 테스트 통과
-- [ ] BlockManager 할당/해제 테스트 통과
-- [ ] Prefix cache hit/miss 테스트 통과
+- [x] BlockManager 할당/해제 테스트 통과
+- [x] Prefix cache hit/miss 테스트 통과
 
 ---
 

@@ -7,9 +7,7 @@
 //! - KVCache for key-value storage
 
 pub mod block;
-
-// TODO: Stage 2 - BlockManager
-// pub mod block_manager;
+pub mod block_manager;
 
 // TODO: Stage 3 - Sequence & KV Cache
 // pub mod sequence;
