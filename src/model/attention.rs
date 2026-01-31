@@ -318,17 +318,18 @@ impl Qwen3Attention {
             Tensor::zeros((1, 1, 1, kv_seq_len), DType::F32, device)
         } else {
             // Prefill: causal mask
-            let mut mask = vec![vec![0.0f32; kv_seq_len]; seq_len];
-            for i in 0..seq_len {
-                for j in 0..kv_seq_len {
+            let mask: Vec<f32> = (0..seq_len)
+                .flat_map(|i| {
                     let query_pos = start_pos + i;
-                    let key_pos = j;
-                    if key_pos > query_pos {
-                        mask[i][j] = neg_inf;
-                    }
-                }
-            }
-            let mask: Vec<f32> = mask.into_iter().flatten().collect();
+                    (0..kv_seq_len).map(move |key_pos| {
+                        if key_pos > query_pos {
+                            neg_inf
+                        } else {
+                            0.0f32
+                        }
+                    })
+                })
+                .collect();
             Tensor::from_vec(mask, (1, 1, seq_len, kv_seq_len), device)
         }
     }
