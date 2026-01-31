@@ -16,6 +16,7 @@ fn example() -> Result<()> {
 ## Error Variants
 
 ### `OutOfBlocks`
+
 KV cache block allocation failed.
 
 ```rust
@@ -26,11 +27,13 @@ Error::OutOfBlocks
 **Cause**: All blocks are in use and no more sequences can be admitted.
 
 **Solution**:
+
 - Increase `num_blocks` in `EngineConfig`
 - Enable preemption to free blocks from low-priority sequences
 - Wait for running sequences to complete
 
 ### `SequenceNotFound`
+
 Referenced sequence doesn't exist.
 
 ```rust
@@ -41,6 +44,7 @@ Error::SequenceNotFound(seq_id)
 **Cause**: Attempting to operate on a sequence that was already completed or never existed.
 
 ### `InvalidStateTransition`
+
 Invalid sequence state change.
 
 ```rust
@@ -51,6 +55,7 @@ Error::InvalidStateTransition { from: "Running", to: "Waiting" }
 **Cause**: Attempting an invalid state transition (e.g., moving a running sequence back to waiting without preemption).
 
 ### `ModelLoad`
+
 Model loading failed.
 
 ```rust
@@ -61,6 +66,7 @@ Error::ModelLoad("file not found".to_string())
 **Cause**: HuggingFace model download or safetensors loading failed.
 
 ### `Tokenization`
+
 Tokenization error.
 
 ```rust
@@ -71,6 +77,7 @@ Error::Tokenization("unknown token".to_string())
 **Cause**: Failed to tokenize input or decode output tokens.
 
 ### `Tensor`
+
 Tensor operation error (from candle).
 
 ```rust
@@ -81,6 +88,7 @@ Error::Tensor(candle_error)
 **Cause**: Shape mismatch, device error, or other tensor operation failure.
 
 ### `Config`
+
 Configuration error.
 
 ```rust
@@ -91,6 +99,7 @@ Error::Config("block_size must be positive".to_string())
 **Cause**: Invalid configuration values.
 
 ### `Io`
+
 I/O error.
 
 ```rust
@@ -101,6 +110,7 @@ Error::Io(io_error)
 **Cause**: File system operations failed.
 
 ### `Json`
+
 JSON parsing error.
 
 ```rust

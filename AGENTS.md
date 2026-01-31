@@ -5,6 +5,7 @@ Rust implementation of nano-vllm - an educational LLM inference engine.
 ## Goal
 
 Implement core vLLM optimizations for learning purposes:
+
 - PagedAttention (virtual memory for KV cache)
 - Continuous Batching
 - Prefix Caching
@@ -19,7 +20,7 @@ Implement core vLLM optimizations for learning purposes:
 
 ## Project Structure
 
-```
+```text
 src/
 ├── core/       # Block, BlockManager, Sequence, KVCache
 ├── scheduler/  # Continuous batching, priority scheduling

@@ -17,7 +17,7 @@ EngineConfig {
 ```
 
 | Field | Default | Description |
-|-------|---------|-------------|
+| ----- | ------- | ----------- |
 | `max_num_seqs` | 256 | Maximum sequences to process concurrently |
 | `max_prefill_tokens` | 4096 | Limits compute per iteration for prefill |
 | `block_size` | 16 | Tokens stored per block (affects memory granularity) |
@@ -42,7 +42,7 @@ SchedulerConfig {
 ```
 
 | Field | Default | Description |
-|-------|---------|-------------|
+| ----- | ------- | ----------- |
 | `enable_chunked_prefill` | true | Break long prompts into chunks |
 | `chunk_size` | 512 | Tokens per chunk for chunked prefill |
 | `enable_priority` | true | Use priority-based scheduling |
@@ -62,7 +62,7 @@ SamplingConfig {
 ```
 
 | Field | Default | Description |
-|-------|---------|-------------|
+| ----- | ------- | ----------- |
 | `temperature` | 1.0 | Higher = more random, lower = more deterministic |
 | `top_k` | 0 | Sample from top K tokens (0 = disabled) |
 | `top_p` | 1.0 | Nucleus sampling threshold (1.0 = disabled) |

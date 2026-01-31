@@ -8,7 +8,7 @@ PagedAttention is the core memory optimization in vLLM. It manages KV cache memo
 
 In traditional LLM inference, KV cache is pre-allocated contiguously for each sequence:
 
-```
+```text
 Traditional approach:
 Sequence A: [████████████████████░░░░░░░░░░░░░░░]  (used: 20, allocated: 36)
 Sequence B: [████████░░░░░░░░░░░░░░░░░░░░░░░░░░░]  (used: 8, allocated: 36)
@@ -17,6 +17,7 @@ Sequence C: [████████████░░░░░░░░░░�
 ```
 
 This leads to:
+
 - **Internal fragmentation**: Pre-allocated space may not be fully used
 - **External fragmentation**: Memory gaps between sequences
 - **No sharing**: Common prefixes duplicated in memory
@@ -25,7 +26,7 @@ This leads to:
 
 PagedAttention divides KV cache into fixed-size blocks:
 
-```
+```text
 PagedAttention approach:
 Block Pool: [B0][B1][B2][B3][B4][B5][B6][B7][B8]...
 
@@ -58,6 +59,7 @@ Block {
 ### Block Sizing
 
 The `block_size` parameter affects:
+
 - **Smaller blocks (8-16)**: Fine-grained allocation, less waste, more metadata overhead
 - **Larger blocks (32-64)**: Less overhead, potentially more internal fragmentation
 
@@ -67,7 +69,7 @@ Default: 16 tokens per block.
 
 A **BlockTable** maps a sequence's logical positions to physical blocks:
 
-```
+```text
 Token position → Logical block index → Physical block ID → Global slot
 
 Position Mapping:
@@ -79,7 +81,7 @@ Position Mapping:
 
 ### Example
 
-```
+```text
 block_size = 16
 sequence has 35 tokens
 
@@ -97,7 +99,7 @@ Token 34: block 3, slot 2   → global slot 50
 
 When multiple sequences share a common prefix, they can share blocks:
 
-```
+```text
 System prompt: "You are a helpful assistant..."
 
 Request 1: "You are a helpful assistant. What is 2+2?"
@@ -134,7 +136,7 @@ This ensures blocks are only shared when the **entire prefix** matches, not just
 
 The KV cache is a large tensor accessed via block IDs:
 
-```
+```text
 KV Cache Shape: [num_blocks, block_size, num_kv_heads, head_dim]
 
 For Qwen3-0.6B (num_kv_heads=8, head_dim=64):
@@ -155,6 +157,7 @@ Accessing token at position p in sequence with BlockTable [5, 12, 3]:
 During attention computation:
 
 ### Prefill Phase
+
 All tokens are processed at once. KV pairs are written to allocated blocks:
 
 ```python
@@ -164,6 +167,7 @@ for position in range(seq_len):
 ```
 
 ### Decode Phase
+
 Only the last token is processed. Attention gathers K/V from blocks:
 
 ```python
@@ -177,7 +181,7 @@ for block_id in block_table:
 ## Summary
 
 | Component | Analogy | Purpose |
-|-----------|---------|---------|
+| --------- | ------- | ------- |
 | Block | Memory Page | Fixed-size KV storage unit |
 | BlockTable | Page Table | Logical → Physical mapping |
 | BlockManager | Memory Allocator | Allocation, freeing, sharing |
