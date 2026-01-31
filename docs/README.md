@@ -17,10 +17,10 @@ This project follows a bottom-up implementation approach, building from low-leve
 │                    Stage 7: Model Loader                    │
 │                    (HuggingFace Integration)                │
 ├─────────────────────────────────────────────────────────────┤
-│        Stage 5-6: Qwen3 Model & PagedAttention             │
+│        Stage 5-6: Qwen3 Model & PagedAttention ← Current   │
 │        (Neural Network Components)                          │
 ├─────────────────────────────────────────────────────────────┤
-│        Stage 4: Scheduler                 ← Current         │
+│        Stage 4: Scheduler                                   │
 │        (Continuous Batching)                                │
 ├─────────────────────────────────────────────────────────────┤
 │        Stage 3: Sequence & KV Cache                         │
@@ -93,9 +93,30 @@ With Sequence tracking requests and KVCache storing tensors, the Scheduler orche
 3. **Resource Management**: Track block allocations, enforce limits (max_num_seqs, max_prefill_tokens)
 4. **Preemption**: Swap low-priority sequences when high-priority requests need memory
 
-### Stage 5-10: Model & Engine (Planned)
+### Stage 5: Qwen3 Model Components
 
-Model components (RMSNorm, RoPE, GQA), PagedAttention operations, model loading, sampling, and CLI will be implemented sequentially.
+- [Qwen3 Architecture](qwen3_architecture.md) - Complete architecture explanation with diagrams
+
+**Components implemented:**
+
+1. **RmsNorm**: Root Mean Square Normalization (simpler than LayerNorm)
+2. **RotaryEmbedding**: RoPE for position encoding via rotation
+3. **Qwen3Mlp**: SwiGLU feed-forward with gating mechanism
+4. **Qwen3Attention**: Grouped Query Attention with per-head normalization
+5. **Qwen3DecoderLayer**: Pre-norm residual block combining attention and MLP
+
+**Why this order?**
+
+The model components build on each other:
+
+- RmsNorm is used everywhere (attention, MLP, final output)
+- RoPE is applied to Q and K in attention
+- MLP and Attention are combined in DecoderLayer
+- DecoderLayer is stacked N times to form the full model
+
+### Stage 6-10: PagedAttention & Engine (Planned)
+
+Block-based attention operations, model loading, sampling, and CLI will be implemented next.
 
 ## Key Design Decisions
 
@@ -143,6 +164,13 @@ src/
 │   ├── block_manager.rs # BlockManager with prefix caching
 │   ├── sequence.rs     # Sequence lifecycle
 │   └── kv_cache.rs     # KV tensor storage
+├── model/
+│   ├── mod.rs
+│   ├── norm.rs         # RmsNorm
+│   ├── rope.rs         # RotaryEmbedding (RoPE)
+│   ├── mlp.rs          # Qwen3Mlp (SwiGLU)
+│   ├── attention.rs    # Qwen3Attention (GQA)
+│   └── decoder.rs      # Qwen3DecoderLayer
 └── scheduler/
     ├── mod.rs
     └── batch.rs        # Scheduler with continuous batching
@@ -154,7 +182,9 @@ docs/
 ├── errors.md           # Error handling
 ├── paged_attention.md  # Block/BlockTable/BlockManager
 ├── sequence_kv_cache.md # Sequence/KVCache
-└── scheduler.md        # Continuous batching scheduler
+├── scheduler.md        # Continuous batching scheduler
+├── continuous_batching_visual.md # Visual guide
+└── qwen3_architecture.md # Qwen3 model architecture
 ```
 
 ## References
