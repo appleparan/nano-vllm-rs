@@ -221,12 +221,13 @@ impl BlockTable {
     /// Returns [`Error::BlockIndexOutOfBounds`] if the logical block index
     /// is not allocated.
     pub fn get_block_id(&self, logical_block_idx: usize) -> Result<usize> {
-        self.block_ids.get(logical_block_idx).copied().ok_or_else(|| {
-            Error::BlockIndexOutOfBounds {
+        self.block_ids
+            .get(logical_block_idx)
+            .copied()
+            .ok_or_else(|| Error::BlockIndexOutOfBounds {
                 logical_idx: logical_block_idx,
                 num_blocks: self.block_ids.len(),
-            }
-        })
+            })
     }
 
     /// Add a new physical block to the table.
@@ -394,11 +395,11 @@ mod tests {
         assert_eq!(slots.len(), 20);
 
         // First 16 tokens in block 5 (slots 80-95)
-        assert_eq!(slots[0], 5 * 16 + 0);   // 80
+        assert_eq!(slots[0], 5 * 16); // 80
         assert_eq!(slots[15], 5 * 16 + 15); // 95
 
         // Next 4 tokens in block 12 (slots 192-195)
-        assert_eq!(slots[16], 12 * 16 + 0); // 192
+        assert_eq!(slots[16], 12 * 16); // 192
         assert_eq!(slots[19], 12 * 16 + 3); // 195
     }
 
