@@ -114,9 +114,26 @@ The model components build on each other:
 - MLP and Attention are combined in DecoderLayer
 - DecoderLayer is stacked N times to form the full model
 
-### Stage 6-10: PagedAttention & Engine (Planned)
+### Stage 6: PagedAttention
 
-Block-based attention operations, model loading, sampling, and CLI will be implemented next.
+- [PagedAttention](paged_attention.md) - Block-based attention operations
+
+**Why this order?**
+
+PagedAttention is vLLM's core optimization. Now that we have both:
+
+- Memory management (Block, BlockTable, KVCache from Stage 2-3)
+- Attention computation (Qwen3Attention from Stage 5)
+
+We can combine them for efficient inference:
+
+1. **prefill_attention**: Standard SDPA for processing prompts efficiently
+2. **paged_attention**: Gather K/V from non-contiguous blocks for decode
+3. **write_kv_to_cache**: Store K/V in block-based cache using slot mapping
+
+### Stage 7-10: Model Loader & Engine (Planned)
+
+Model loading, sampling, and CLI will be implemented next.
 
 ## Key Design Decisions
 

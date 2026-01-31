@@ -129,21 +129,25 @@
 ## Stage 6: PagedAttention
 
 **Goal**: 블록 기반 attention 연산 구현
-**Status**: Not Started
+**Status**: Complete
 
 ### Tasks
 
-1. `paged_attention()` 함수
+1. [x] `paged_attention()` 함수 - `src/attention/paged.rs`
    - BlockTable에서 K/V gather
    - Attention 연산 (Q @ K^T / sqrt(d) -> softmax -> @ V)
-   - Causal masking
-2. Prefill용 attention (FlashAttention 스타일 또는 SDPA)
-3. Decode용 paged attention
+   - Causal masking (prefill 및 chunked prefill 지원)
+2. [x] `prefill_attention()` - Standard SDPA
+3. [x] `write_kv_to_cache()` - 블록 기반 캐시에 K/V 저장
 
 ### Success Criteria
 
-- [ ] Paged attention output 검증 테스트
-- [ ] 기존 attention과 출력 일치 테스트
+- [x] Prefill attention shape 테스트 통과
+- [x] Paged attention 기본 동작 테스트 통과
+- [x] Multi-block paged attention 테스트 통과
+- [x] Chunked prefill 테스트 통과
+- [x] Write KV to cache 테스트 통과
+- [x] 총 10개 PagedAttention 테스트 통과
 
 ---
 

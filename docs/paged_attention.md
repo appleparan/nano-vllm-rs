@@ -302,30 +302,98 @@ During attention computation:
 
 ### Prefill Phase
 
-All tokens are processed at once. KV pairs are written to allocated blocks:
+All tokens are processed at once with standard SDPA. KV pairs are written to allocated blocks after computation:
+
+```rust
+// Standard Scaled Dot-Product Attention for prefill
+pub fn prefill_attention(
+    query: &Tensor,    // [batch, seq_len, num_heads, head_dim]
+    key: &Tensor,      // [batch, seq_len, num_kv_heads, head_dim]
+    value: &Tensor,    // [batch, seq_len, num_kv_heads, head_dim]
+    num_heads: usize,
+    num_kv_heads: usize,
+    scale: f64,
+    causal: bool,
+) -> Result<Tensor>
+```
+
+**Forward flow:**
+
+1. Expand K, V for GQA (repeat KV heads to match Q heads)
+2. Transpose to `[batch, num_heads, seq_len, head_dim]`
+3. Compute attention: `softmax(Q @ K^T / √d) @ V`
+4. Apply causal mask if needed
+5. Transpose back and reshape
+
+After prefill, write K/V to block-based cache:
 
 ```rust
 // Write KV states to cache during prefill
 let slot_mapping = block_table.get_slot_mapping(seq_len);
-for (position, &slot) in slot_mapping.iter().enumerate() {
-    let kv = compute_kv(&hidden_states, position);
-    kv_cache.write(slot, &kv);
-}
+let (new_k_cache, new_v_cache) = write_kv_to_cache(
+    &key, &value,
+    &key_cache, &value_cache,
+    &slot_mapping,
+    block_size,
+)?;
 ```
 
 ### Decode Phase
 
-Only the last token is processed. Attention gathers K/V from blocks:
+Only new token(s) are processed. K/V gathered from non-contiguous blocks:
 
 ```rust
-// Gather K/V from non-contiguous blocks for attention
-let block_ids = block_table.get_physical_block_ids();
-for &block_id in block_ids {
-    let k_block = kv_cache.get_key_block(block_id);   // [block_size, num_kv_heads, head_dim]
-    let v_block = kv_cache.get_value_block(block_id);
-    // Compute attention with gathered K/V
-}
+// Block-based attention for decode
+pub fn paged_attention(
+    query: &Tensor,           // [batch, num_new_tokens, num_heads, head_dim]
+    kv_cache: &LayerKVCache,  // Block-based cache [num_blocks, block_size, num_kv_heads, head_dim]
+    block_table: &BlockTable, // Logical → Physical mapping
+    context_len: usize,       // Total tokens (cached + new)
+    num_heads: usize,
+    num_kv_heads: usize,
+    head_dim: usize,
+    scale: f64,
+) -> Result<Tensor>
 ```
+
+**Forward flow:**
+
+1. Get physical block IDs from BlockTable
+2. Gather K, V from blocks (non-contiguous memory access)
+3. Reshape to continuous sequence `[1, context_len, num_kv_heads, head_dim]`
+4. Expand for GQA
+5. Compute attention with the full context
+6. Apply causal mask for chunked prefill (if `num_new_tokens > 1`)
+
+### Causal Masking
+
+For prefill with `seq_len = 4`:
+
+```text
+[0,   -∞,  -∞,  -∞]   Token 0 sees only itself
+[0,    0,  -∞,  -∞]   Token 1 sees 0, 1
+[0,    0,   0,  -∞]   Token 2 sees 0, 1, 2
+[0,    0,   0,   0]   Token 3 sees all
+```
+
+For chunked prefill (2 new tokens, 3 cached):
+
+```text
+Context: [c0, c1, c2, n0, n1]  (3 cached + 2 new)
+
+Mask for new tokens (2x5):
+[0, 0, 0, 0, -∞]   n0 at pos 3: sees c0,c1,c2,n0, not n1
+[0, 0, 0, 0,  0]   n1 at pos 4: sees all
+```
+
+## Implementation Files
+
+| File | Description |
+| ---- | ----------- |
+| `src/core/block.rs` | Block, BlockTable, hash_token_block |
+| `src/core/block_manager.rs` | BlockManager with prefix caching |
+| `src/core/kv_cache.rs` | LayerKVCache, KVCache tensor storage |
+| `src/attention/paged.rs` | prefill_attention, paged_attention, write_kv_to_cache |
 
 ## Summary
 
@@ -336,6 +404,9 @@ for &block_id in block_ids {
 | BlockManager | Memory Allocator | Allocation, freeing, sharing |
 | prefix_hash | Content Hash | Identify shareable prefixes via cumulative hashing |
 | ref_count | Reference Count | Track shared block usage for safe deallocation |
+| prefill_attention | Standard SDPA | Efficient batched attention for prefill phase |
+| paged_attention | Block Gather + SDPA | Non-contiguous K/V access for decode phase |
+| write_kv_to_cache | Scatter | Write K/V to block-based cache via slot mapping |
 
 ## References
 
