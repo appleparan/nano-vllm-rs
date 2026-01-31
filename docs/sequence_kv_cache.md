@@ -349,6 +349,90 @@ Per-sequence overhead (excluding KV cache):
     ≈ 9 MB (negligible compared to KV cache)
 ```
 
+## Design Note: Sequence vs SequenceGroup
+
+nano-vllm uses a simple `Sequence` structure, but the original vLLM introduces `SequenceGroup` for advanced sampling strategies.
+
+### Why vLLM Has SequenceGroup
+
+vLLM supports sampling methods that generate multiple candidate sequences from a single request:
+
+```text
+SequenceGroup in vLLM:
+
+  ┌─────────────────────────────────────────────────────────┐
+  │ SequenceGroup (request_id: "req-1")                     │
+  │                                                         │
+  │   Shared prompt: "Once upon a time"                     │
+  │   Sampling params: n=3, beam_width=4                    │
+  │                                                         │
+  │   ┌──────────┐  ┌──────────┐  ┌──────────┐             │
+  │   │ Seq 0    │  │ Seq 1    │  │ Seq 2    │   ...       │
+  │   │ "there"  │  │ "in a"   │  │ "lived"  │             │
+  │   └──────────┘  └──────────┘  └──────────┘             │
+  └─────────────────────────────────────────────────────────┘
+
+Use cases:
+  - Beam search: Keep top-k candidates at each step
+  - Parallel sampling (n > 1): Generate multiple completions
+  - Best-of-n: Generate n, return the best one
+```
+
+### Benefits of SequenceGroup
+
+1. **Shared Prompt Blocks**: All sequences in a group share the same prefix KV cache blocks (copy-on-write)
+2. **Coordinated Scheduling**: The group is scheduled together
+3. **Unified Completion**: The group finishes when sampling criteria are met
+
+```text
+Memory sharing with SequenceGroup:
+
+  Prompt blocks (shared):     Divergent blocks (separate):
+  ┌─────┬─────┬─────┐
+  │ B0  │ B1  │ B2  │  ←  ref_count = 3 (shared by 3 seqs)
+  └─────┴─────┴─────┘
+          │
+    ┌─────┼─────┐
+    ▼     ▼     ▼
+  ┌───┐ ┌───┐ ┌───┐
+  │B3 │ │B4 │ │B5 │  ←  Each sequence's own continuation
+  └───┘ └───┘ └───┘
+```
+
+### Why nano-vllm Uses Simple Sequence
+
+For educational clarity, nano-vllm implements only greedy/simple sampling:
+
+| Feature | vLLM | nano-vllm |
+| ------- | ---- | --------- |
+| Basic generation | SequenceGroup with 1 Sequence | Sequence |
+| Beam search | SequenceGroup with k Sequences | Not supported |
+| Parallel sampling | SequenceGroup with n Sequences | Not supported |
+| Prefix sharing | Copy-on-write via SequenceGroup | Prefix caching only |
+
+This simplification allows focusing on the core concepts (PagedAttention, continuous batching) without the complexity of multi-sequence management.
+
+### Extending to SequenceGroup
+
+If you wanted to add SequenceGroup support:
+
+```rust
+// Hypothetical SequenceGroup structure
+struct SequenceGroup {
+    request_id: String,
+    sequences: Vec<Sequence>,        // Multiple candidates
+    sampling_params: SamplingParams, // n, beam_width, etc.
+    shared_block_ids: Vec<usize>,    // Prefix blocks (copy-on-write)
+}
+```
+
+Key implementation considerations:
+
+1. **Fork operation**: Create new sequence sharing prefix blocks (increment ref_count)
+2. **Copy-on-write**: When writing to shared block, copy first if ref_count > 1
+3. **Group scheduling**: Schedule all sequences in group together
+4. **Beam management**: Prune low-scoring candidates, keep top-k
+
 ## Summary
 
 | Component | Role | Key Data |
