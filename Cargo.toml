@@ -14,7 +14,7 @@ candle-nn = "0.8"
 candle-transformers = "0.8"
 
 # Tokenization & model loading
-tokenizers = "0.21"
+tokenizers = "0.22"
 hf-hub = "0.3"
 safetensors = "0.5"
 
