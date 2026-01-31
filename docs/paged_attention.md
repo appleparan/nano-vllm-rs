@@ -97,40 +97,184 @@ Token 34: block 3, slot 2   → global slot 50
 
 ## Prefix Caching
 
-When multiple sequences share a common prefix, they can share blocks:
+### Why Prefix Caching?
+
+In production LLM deployments, many requests share common prefixes:
+
+1. **System prompts**: "You are a helpful assistant..." prepended to every request
+2. **Few-shot examples**: Same examples used for in-context learning
+3. **Document context**: Multiple questions about the same document
+4. **Chat history**: Multi-turn conversations with shared context
+
+Without prefix caching, each request recomputes and stores duplicate KV states:
 
 ```text
-System prompt: "You are a helpful assistant..."
+1000 requests × 2048 tokens system prompt × 2 (K+V) × hidden_dim × num_layers
+= Massive memory waste and redundant computation
+```
+
+### How It Works
+
+Prefix caching allows multiple sequences to **share the same physical blocks** for their common prefix:
+
+```text
+System prompt: "You are a helpful assistant..."  (48 tokens = 3 blocks)
 
 Request 1: "You are a helpful assistant. What is 2+2?"
 Request 2: "You are a helpful assistant. Explain quantum physics."
+Request 3: "You are a helpful assistant. Write a poem."
 
-Without prefix caching:
-  Request 1: [A0][A1][A2][A3]  # Duplicated prefix
+Memory layout WITHOUT prefix caching (9 blocks for prefix alone):
+  Request 1: [A0][A1][A2][A3]
   Request 2: [B0][B1][B2][B3]
+  Request 3: [C0][C1][C2][C3]
 
-With prefix caching:
-  Request 1: [S0][S1][S2][A0]  # Shared prefix blocks
-  Request 2: [S0][S1][S2][B0]
-             ↑↑↑ Same physical blocks (ref_count = 2)
+Memory layout WITH prefix caching (3 blocks for prefix):
+  Request 1: [S0][S1][S2] → [A3]    ← S0,S1,S2 shared
+  Request 2: [S0][S1][S2] → [B3]    ← ref_count = 3
+  Request 3: [S0][S1][S2] → [C3]
+
+Savings: 6 blocks saved = 66% memory reduction for prefix!
 ```
 
-### Hash-based Identification
+### Hash-based Block Identification
 
-Prefix blocks are identified using cumulative hashes:
+The key question is: **How do we know if a block can be reused?**
+
+We use **cumulative hashing** to create a unique identifier for each block that captures its entire prefix history:
 
 ```rust
-// First block
-hash_1 = hash(tokens[0..16])
+// Block 0: Just the first 16 tokens
+hash_0 = hash(tokens[0..16])
 
-// Second block includes parent hash
-hash_2 = hash((hash_1, tokens[16..32]))
+// Block 1: Includes Block 0's hash to form a chain
+hash_1 = hash((hash_0, tokens[16..32]))
 
-// Third block
-hash_3 = hash((hash_2, tokens[32..48]))
+// Block 2: Includes the entire prefix chain
+hash_2 = hash((hash_1, tokens[32..48]))
 ```
 
-This ensures blocks are only shared when the **entire prefix** matches, not just the current block's tokens.
+#### Why Cumulative Hashing?
+
+Simple per-block hashing would be incorrect:
+
+```text
+Problem with simple hashing:
+
+Sequence A: "Hello world. How are you?"
+Sequence B: "Goodbye world. How are you?"
+                           ↑
+                    Block 2 has same tokens!
+                    But different context!
+
+Simple hash: hash("How are you?") → same hash → WRONG sharing!
+
+Cumulative hash:
+  A: hash((hash_block_1_A, "How are you?")) → hash_A
+  B: hash((hash_block_1_B, "How are you?")) → hash_B
+  hash_A ≠ hash_B → Correctly different!
+```
+
+The cumulative hash ensures we only share blocks when the **entire prefix** matches, not just the current block's tokens.
+
+### Prefix Cache Lookup Flow
+
+```text
+New request arrives with tokens [t0, t1, t2, ..., t47]
+
+1. Compute hash for block 0: h0 = hash(tokens[0..16])
+2. Look up h0 in prefix_cache
+   - HIT: Reuse block, increment ref_count
+   - MISS: Allocate new block, store in cache
+
+3. Compute hash for block 1: h1 = hash((h0, tokens[16..32]))
+4. Look up h1 in prefix_cache
+   - HIT: Reuse block, increment ref_count
+   - MISS: Allocate new block, store in cache
+
+5. Continue until all prefix blocks are resolved...
+
+6. Allocate fresh blocks for the unique suffix
+```
+
+## Reference Counting
+
+### Why Reference Counting?
+
+When blocks are shared between sequences, we need to track **how many sequences are using each block**. This is critical for:
+
+1. **Safe deallocation**: Don't free a block while another sequence still needs it
+2. **Copy-on-write semantics**: Know when a block is exclusively owned
+3. **Memory accounting**: Track actual memory usage
+
+### The Sharing Lifecycle
+
+```text
+Timeline:
+
+T0: Request A arrives, allocates blocks [B0, B1, B2, B3]
+    B0.ref_count = 1, B1.ref_count = 1, B2.ref_count = 1, B3.ref_count = 1
+
+T1: Request B arrives with same prefix, shares [B0, B1, B2], allocates [B4]
+    B0.ref_count = 2, B1.ref_count = 2, B2.ref_count = 2  ← incremented
+    B3.ref_count = 1  (A's suffix)
+    B4.ref_count = 1  (B's suffix)
+
+T2: Request A completes, frees its blocks
+    B0.ref_count = 1  ← decremented, NOT freed (still used by B)
+    B1.ref_count = 1
+    B2.ref_count = 1
+    B3.ref_count = 0  → returned to free list
+
+T3: Request B completes, frees its blocks
+    B0.ref_count = 0  → returned to free list
+    B1.ref_count = 0  → returned to free list
+    B2.ref_count = 0  → returned to free list
+    B4.ref_count = 0  → returned to free list
+```
+
+### BlockManager Operations
+
+```rust
+// Sharing a cached block (prefix hit)
+fn get_cached_block(&mut self, hash: u64) -> Option<usize> {
+    if let Some(&block_id) = self.prefix_cache.get(&hash) {
+        self.blocks[block_id].increment_ref();  // ref_count: 1 → 2
+        return Some(block_id);
+    }
+    None
+}
+
+// Freeing a block (sequence completes)
+fn free(&mut self, block_id: usize) -> bool {
+    let block = &mut self.blocks[block_id];
+    block.decrement_ref();  // ref_count: 2 → 1
+
+    if block.ref_count() == 0 {
+        // Last reference gone, actually free the block
+        self.prefix_cache.remove(&block.prefix_hash());
+        self.free_list.push(block_id);
+        return true;
+    }
+    false  // Still in use by other sequences
+}
+```
+
+### Copy-on-Write (Future Extension)
+
+Reference counting also enables copy-on-write semantics for speculative decoding:
+
+```text
+Speculation scenario:
+
+1. Target model and draft model share prefix blocks
+2. Draft model speculatively extends the sequence
+3. If speculation is rejected:
+   - Draft's blocks are freed (ref_count goes to 0)
+   - Target's blocks remain valid (ref_count > 0)
+4. If speculation is accepted:
+   - Ownership transfers, ref_counts adjusted accordingly
+```
 
 ## Memory Layout
 
@@ -160,22 +304,27 @@ During attention computation:
 
 All tokens are processed at once. KV pairs are written to allocated blocks:
 
-```python
-for position in range(seq_len):
-    slot = slot_mapping[position]  # From BlockTable
-    kv_cache[slot] = compute_kv(hidden_states[position])
+```rust
+// Write KV states to cache during prefill
+let slot_mapping = block_table.get_slot_mapping(seq_len);
+for (position, &slot) in slot_mapping.iter().enumerate() {
+    let kv = compute_kv(&hidden_states, position);
+    kv_cache.write(slot, &kv);
+}
 ```
 
 ### Decode Phase
 
 Only the last token is processed. Attention gathers K/V from blocks:
 
-```python
-# Gather K/V from non-contiguous blocks
-for block_id in block_table:
-    K_block = kv_cache[block_id]  # [block_size, num_kv_heads, head_dim]
-    V_block = ...
-    # Compute attention with gathered K/V
+```rust
+// Gather K/V from non-contiguous blocks for attention
+let block_ids = block_table.get_physical_block_ids();
+for &block_id in block_ids {
+    let k_block = kv_cache.get_key_block(block_id);   // [block_size, num_kv_heads, head_dim]
+    let v_block = kv_cache.get_value_block(block_id);
+    // Compute attention with gathered K/V
+}
 ```
 
 ## Summary
@@ -185,5 +334,10 @@ for block_id in block_table:
 | Block | Memory Page | Fixed-size KV storage unit |
 | BlockTable | Page Table | Logical → Physical mapping |
 | BlockManager | Memory Allocator | Allocation, freeing, sharing |
-| prefix_hash | Content Hash | Identify shareable prefixes |
-| ref_count | Reference Count | Track shared block usage |
+| prefix_hash | Content Hash | Identify shareable prefixes via cumulative hashing |
+| ref_count | Reference Count | Track shared block usage for safe deallocation |
+
+## References
+
+- [vLLM Paper: Efficient Memory Management for Large Language Model Serving with PagedAttention](https://arxiv.org/abs/2309.06180)
+- [OS Virtual Memory](https://en.wikipedia.org/wiki/Virtual_memory) - The inspiration for PagedAttention's design
