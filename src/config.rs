@@ -92,7 +92,7 @@ impl Default for SamplingConfig {
     }
 }
 
-/// Model configuration (Llama-style).
+/// Model configuration (Qwen3-style).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelConfig {
     /// Vocabulary size.
@@ -117,17 +117,17 @@ pub struct ModelConfig {
 
 impl Default for ModelConfig {
     fn default() -> Self {
-        // TinyLlama-1.1B defaults
+        // Qwen3-0.6B defaults
         Self {
-            vocab_size: 32000,
-            hidden_size: 2048,
-            intermediate_size: 5632,
-            num_hidden_layers: 22,
-            num_attention_heads: 32,
-            num_key_value_heads: 4,
-            rms_norm_eps: 1e-5,
-            rope_theta: 10000.0,
-            max_position_embeddings: 2048,
+            vocab_size: 151936,
+            hidden_size: 1024,
+            intermediate_size: 2816,
+            num_hidden_layers: 28,
+            num_attention_heads: 16,
+            num_key_value_heads: 8,
+            rms_norm_eps: 1e-6,
+            rope_theta: 1000000.0,
+            max_position_embeddings: 40960,
         }
     }
 }

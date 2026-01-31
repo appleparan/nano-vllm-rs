@@ -24,7 +24,7 @@ src/
 ├── core/       # Block, BlockManager, Sequence, KVCache
 ├── scheduler/  # Continuous batching, priority scheduling
 ├── attention/  # PagedAttention
-├── model/      # Llama (RMSNorm, RoPE, GQA, SwiGLU)
+├── model/      # Qwen3 (RMSNorm, RoPE, GQA, SwiGLU)
 ├── engine/     # LLMEngine, Sampler
 └── speculative/ # Speculative decoding
 ```

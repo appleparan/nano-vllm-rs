@@ -2,11 +2,11 @@
 //!
 //! This module contains:
 //! - Model loading from HuggingFace
-//! - Llama architecture (RMSNorm, RoPE, GQA, SwiGLU)
+//! - Qwen3 architecture (RMSNorm, RoPE, GQA, SwiGLU)
 
-// TODO: Stage 5 - Llama Components
+// TODO: Stage 5 - Qwen3 Components
 // pub mod components;
-// pub mod llama;
+// pub mod qwen3;
 
 // TODO: Stage 7 - Model Loader
 // pub mod loader;

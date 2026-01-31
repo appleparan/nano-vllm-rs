@@ -21,7 +21,7 @@ nano-vllm-rs implements core vLLM optimizations in Rust for educational purposes
 │   Scheduler   │ │     Model     │ │    Sampler    │
 │  (scheduler/) │ │    (model/)   │ │   (engine/)   │
 │               │ │               │ │               │
-│ - Continuous  │ │ - Llama arch  │ │ - Temperature │
+│ - Continuous  │ │ - Qwen3 arch  │ │ - Temperature │
 │   batching    │ │ - RMSNorm     │ │ - Top-k/p     │
 │ - Priority    │ │ - RoPE        │ │               │
 │ - Preemption  │ │ - GQA         │ │               │
@@ -68,12 +68,12 @@ Attention implementations:
 - **FlashAttention**: Memory-efficient attention (optional)
 
 ### `model/`
-Llama architecture:
+Qwen3 architecture:
 - **RMSNorm**: Root Mean Square normalization
 - **RoPE**: Rotary Position Embeddings
-- **LlamaAttention**: Grouped Query Attention (GQA)
-- **LlamaMLP**: SwiGLU feed-forward network
-- **LlamaModel**: Full transformer stack
+- **Qwen3Attention**: Grouped Query Attention (GQA)
+- **Qwen3MLP**: SwiGLU feed-forward network
+- **Qwen3Model**: Full transformer stack
 
 ### `engine/`
 Inference orchestration:

@@ -75,19 +75,19 @@
 
 ---
 
-## Stage 5: Llama Model Components
-**Goal**: Llama 모델 구성요소 구현
+## Stage 5: Qwen3 Model Components
+**Goal**: Qwen3 모델 구성요소 구현
 **Status**: Not Started
 
 ### Tasks
 1. `RMSNorm` (Root Mean Square Normalization)
 2. `RotaryEmbedding` (RoPE - Rotary Position Embeddings)
-3. `LlamaMLP` (SwiGLU: gate * silu(up) -> down)
-4. `LlamaAttention` (GQA - Grouped Query Attention)
+3. `Qwen3MLP` (SwiGLU: gate * silu(up) -> down)
+4. `Qwen3Attention` (GQA - Grouped Query Attention)
    - Q/K/V projection (num_kv_heads < num_heads)
    - RoPE 적용
    - Scaled dot-product attention
-5. `LlamaDecoderLayer` (attention + mlp + residual)
+5. `Qwen3DecoderLayer` (attention + mlp + residual)
 
 ### Success Criteria
 - [ ] RMSNorm forward 테스트 통과
@@ -114,22 +114,22 @@
 
 ---
 
-## Stage 7: Model Loader & Full Llama Model
-**Goal**: HuggingFace 모델 로딩 및 전체 Llama 모델 조립
+## Stage 7: Model Loader & Full Qwen3 Model
+**Goal**: HuggingFace 모델 로딩 및 전체 Qwen3 모델 조립
 **Status**: Not Started
 
 ### Tasks
-1. `LlamaConfig` (vocab_size, hidden_size, num_layers, num_heads, num_kv_heads, ...)
+1. `Qwen3Config` (vocab_size, hidden_size, num_layers, num_heads, num_kv_heads, ...)
 2. HuggingFace model 다운로드 (hf-hub)
 3. SafeTensors 로딩
-4. `LlamaModel` 조립
+4. `Qwen3Model` 조립
    - Token embedding
-   - N개 LlamaDecoderLayer
+   - N개 Qwen3DecoderLayer
    - Final RMSNorm
    - LM head
 
 ### Success Criteria
-- [ ] TinyLlama 모델 로딩 성공
+- [ ] Qwen3-0.6B 모델 로딩 성공
 - [ ] Forward pass 실행 성공
 
 ---
