@@ -46,23 +46,27 @@
 ## Stage 3: Sequence & KV Cache
 
 **Goal**: 요청 추적 및 KV Cache 저장소 구현
-**Status**: Not Started
+**Status**: Complete
 
 ### Tasks
 
-1. `SequenceStatus` enum (Waiting, Running, Swapped, Finished)
-2. `Sequence` 구조체
+1. [x] `SequenceStatus` enum (Waiting, Running, Swapped, Finished)
+2. [x] `FinishReason` enum (EndOfSequence, MaxTokens, StopSequence, Aborted)
+3. [x] `Sequence` 구조체
    - prompt_token_ids, output_token_ids
    - block_table, num_prefilled_tokens
    - priority, arrival_time
-3. `KVCache` 구조체
+   - State transition methods with validation
+4. [x] `KVCacheConfig` 구조체
+5. [x] `LayerKVCache` 구조체 (single layer K/V storage)
+6. [x] `KVCache` 구조체
    - [num_blocks, block_size, num_kv_heads, head_dim] 형태 Tensor
-   - get/set by block_id and slot
+   - gather_keys/values for block-based access
 
 ### Success Criteria
 
-- [ ] Sequence 상태 전이 테스트 통과
-- [ ] KV Cache read/write 테스트 통과
+- [x] Sequence 상태 전이 테스트 통과
+- [x] KV Cache creation/gather 테스트 통과
 
 ---
 

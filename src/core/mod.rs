@@ -8,7 +8,5 @@
 
 pub mod block;
 pub mod block_manager;
-
-// TODO: Stage 3 - Sequence & KV Cache
-// pub mod sequence;
-// pub mod kv_cache;
+pub mod kv_cache;
+pub mod sequence;
