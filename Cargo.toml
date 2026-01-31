@@ -10,7 +10,7 @@ rust-version = "1.75"
 [dependencies]
 # Tensor operations
 candle-core = "0.8"
-candle-nn = "0.8"
+candle-nn = "0.9"
 candle-transformers = "0.8"
 
 # Tokenization & model loading
