@@ -5,7 +5,45 @@ edition = "2021"
 description = "Rewrite nano-vllm in Rust"
 repository = "https://github.com/appleparan/nano-vllm-rs"
 license = "MIT"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+rust-version = "1.75"
 
 [dependencies]
+# Tensor operations
+candle-core = "0.8"
+candle-nn = "0.8"
+candle-transformers = "0.8"
+
+# Tokenization & model loading
+tokenizers = "0.21"
+hf-hub = "0.3"
+safetensors = "0.5"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bin]]
+name = "nano-vllm"
+path = "src/main.rs"
+
+[lib]
+name = "nano_vllm"
+path = "src/lib.rs"
+
+[profile.release]
+lto = true
+codegen-units = 1

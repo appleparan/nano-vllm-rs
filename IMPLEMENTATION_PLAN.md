@@ -2,7 +2,7 @@
 
 ## Stage 1: Project Setup & Core Types
 **Goal**: 기본 프로젝트 구조와 핵심 타입 정의
-**Status**: Not Started
+**Status**: Complete
 
 ### Tasks
 1. Cargo.toml 의존성 설정 (candle, tokenizers, hf-hub, clap, anyhow, thiserror)
@@ -11,8 +11,8 @@
 4. Core 모듈 구조 생성
 
 ### Success Criteria
-- [ ] `cargo build` 성공
-- [ ] `cargo test` 성공 (빈 테스트라도)
+- [x] `cargo build` 성공
+- [x] `cargo test` 성공 (빈 테스트라도)
 
 ---
 
