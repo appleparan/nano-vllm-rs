@@ -1,3 +1,5 @@
+//! nano-vllm CLI - A minimalistic LLM inference engine.
+
 use clap::Parser;
 
 #[derive(Parser, Debug)]
@@ -23,11 +25,11 @@ fn main() {
     println!("nano-vllm v{}", env!("CARGO_PKG_VERSION"));
 
     if let Some(model) = &args.model {
-        println!("Model: {}", model);
+        println!("Model: {model}");
     }
 
     if let Some(prompt) = &args.prompt {
-        println!("Prompt: {}", prompt);
+        println!("Prompt: {prompt}");
     }
 
     println!("Max tokens: {}", args.max_tokens);

@@ -45,5 +45,19 @@ name = "nano_vllm"
 path = "src/lib.rs"
 
 [profile.release]
+strip = true
 lto = true
 codegen-units = 1
+panic = "abort"
+
+[lints.clippy]
+uninlined_format_args = "warn"
+needless_return = "warn"
+redundant_closure = "warn"
+manual_range_contains = "warn"
+module_inception = "warn"
+bool_comparison = "warn"
+
+[lints.rust]
+unsafe_code = "warn"
+missing_docs = "warn"

@@ -19,7 +19,9 @@ pub enum Error {
     /// Invalid sequence state transition.
     #[error("invalid state transition: {from:?} -> {to:?}")]
     InvalidStateTransition {
+        /// The current state.
         from: &'static str,
+        /// The target state.
         to: &'static str,
     },
 
