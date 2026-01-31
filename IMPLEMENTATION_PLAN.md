@@ -100,24 +100,29 @@
 ## Stage 5: Qwen3 Model Components
 
 **Goal**: Qwen3 모델 구성요소 구현
-**Status**: Not Started
+**Status**: Complete
 
 ### Tasks
 
-1. `RMSNorm` (Root Mean Square Normalization)
-2. `RotaryEmbedding` (RoPE - Rotary Position Embeddings)
-3. `Qwen3MLP` (SwiGLU: gate * silu(up) -> down)
-4. `Qwen3Attention` (GQA - Grouped Query Attention)
+1. [x] `RmsNorm` (Root Mean Square Normalization) - `src/model/norm.rs`
+2. [x] `RotaryEmbedding` (RoPE - Rotary Position Embeddings) - `src/model/rope.rs`
+3. [x] `Qwen3Mlp` (SwiGLU: gate * silu(up) -> down) - `src/model/mlp.rs`
+4. [x] `Qwen3Attention` (GQA - Grouped Query Attention) - `src/model/attention.rs`
    - Q/K/V projection (num_kv_heads < num_heads)
+   - Per-head RMSNorm on Q and K (Qwen3 specific)
    - RoPE 적용
-   - Scaled dot-product attention
-5. `Qwen3DecoderLayer` (attention + mlp + residual)
+   - Scaled dot-product attention with causal mask
+   - KV cache support
+5. [x] `Qwen3DecoderLayer` (attention + mlp + residual) - `src/model/decoder.rs`
 
 ### Success Criteria
 
-- [ ] RMSNorm forward 테스트 통과
-- [ ] RoPE 테스트 통과
-- [ ] Attention output shape 테스트 통과
+- [x] RmsNorm forward 테스트 통과 (5 tests)
+- [x] RoPE 테스트 통과 (6 tests)
+- [x] MLP 테스트 통과 (5 tests)
+- [x] Attention output shape 테스트 통과 (7 tests)
+- [x] DecoderLayer 테스트 통과 (5 tests)
+- [x] 총 28개 모델 컴포넌트 테스트 통과
 
 ---
 
