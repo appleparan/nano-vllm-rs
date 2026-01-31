@@ -12,6 +12,15 @@ pub enum Error {
     #[error("out of KV cache blocks")]
     OutOfBlocks,
 
+    /// Block index out of bounds.
+    #[error("logical block {logical_idx} not allocated (table has {num_blocks} blocks)")]
+    BlockIndexOutOfBounds {
+        /// The requested logical block index.
+        logical_idx: usize,
+        /// Number of blocks in the table.
+        num_blocks: usize,
+    },
+
     /// Sequence not found in scheduler.
     #[error("sequence {0} not found")]
     SequenceNotFound(u64),

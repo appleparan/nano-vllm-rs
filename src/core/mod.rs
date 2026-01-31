@@ -6,8 +6,9 @@
 //! - Sequence for request tracking
 //! - KVCache for key-value storage
 
-// TODO: Stage 2 - Block & BlockManager
-// pub mod block;
+pub mod block;
+
+// TODO: Stage 2 - BlockManager
 // pub mod block_manager;
 
 // TODO: Stage 3 - Sequence & KV Cache
