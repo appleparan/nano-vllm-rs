@@ -1,3 +1,6 @@
 /target
 .cargo-ok
 .DS_Store
+
+# Local cargo config (may contain target-cpu=native)
+.cargo/config.toml
