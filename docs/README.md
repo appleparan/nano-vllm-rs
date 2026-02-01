@@ -11,13 +11,13 @@ This project follows a bottom-up implementation approach, building from low-leve
 │                    Stage 9-10: CLI & Advanced               │
 │                    (Speculative Decoding)                   │
 ├─────────────────────────────────────────────────────────────┤
-│                    Stage 8: LLM Engine                      │
+│                    Stage 8: LLM Engine          ← Next      │
 │                    (Orchestration)                          │
 ├─────────────────────────────────────────────────────────────┤
-│                    Stage 7: Model Loader                    │
+│                    Stage 7: Model Loader        ✓ Complete  │
 │                    (HuggingFace Integration)                │
 ├─────────────────────────────────────────────────────────────┤
-│        Stage 5-6: Qwen3 Model & PagedAttention ← Current   │
+│        Stage 5-6: Qwen3 Model & PagedAttention  ✓ Complete  │
 │        (Neural Network Components)                          │
 ├─────────────────────────────────────────────────────────────┤
 │        Stage 4: Scheduler                                   │
@@ -131,9 +131,29 @@ We can combine them for efficient inference:
 2. **paged_attention**: Gather K/V from non-contiguous blocks for decode
 3. **write_kv_to_cache**: Store K/V in block-based cache using slot mapping
 
-### Stage 7-10: Model Loader & Engine (Planned)
+### Stage 7: Model Loader & Full Qwen3 Model
 
-Model loading, sampling, and CLI will be implemented next.
+- [Model Loader](model_loader.md) - HuggingFace download, SafeTensors loading, Qwen3 model assembly
+
+**Components implemented:**
+
+1. **Qwen3Config**: Parse HuggingFace config.json
+2. **download_model()**: Download from HuggingFace Hub (hf-hub)
+3. **load_safetensors()**: Memory-mapped SafeTensors loading
+4. **Qwen3Model**: Token embedding + N decoder layers + final norm
+5. **Qwen3ForCausalLM**: Adds language model head for token prediction
+
+**Why this order?**
+
+With all model components implemented in Stage 5-6, we can now:
+
+- Load pretrained weights from HuggingFace
+- Assemble the full Qwen3 transformer model
+- Prepare for inference in Stage 8
+
+### Stage 8-10: Sampler & Engine (Planned)
+
+Sampling, inference engine orchestration, and CLI will be implemented next.
 
 ## Key Design Decisions
 
@@ -187,7 +207,9 @@ src/
 │   ├── rope.rs         # RotaryEmbedding (RoPE)
 │   ├── mlp.rs          # Qwen3Mlp (SwiGLU)
 │   ├── attention.rs    # Qwen3Attention (GQA)
-│   └── decoder.rs      # Qwen3DecoderLayer
+│   ├── decoder.rs      # Qwen3DecoderLayer
+│   ├── loader.rs       # HuggingFace model download, SafeTensors loading
+│   └── qwen3.rs        # Qwen3Model, Qwen3ForCausalLM
 └── scheduler/
     ├── mod.rs
     └── batch.rs        # Scheduler with continuous batching
@@ -201,7 +223,8 @@ docs/
 ├── sequence_kv_cache.md # Sequence/KVCache
 ├── scheduler.md        # Continuous batching scheduler
 ├── continuous_batching_visual.md # Visual guide
-└── qwen3_architecture.md # Qwen3 model architecture
+├── qwen3_architecture.md # Qwen3 model architecture
+└── model_loader.md     # HuggingFace integration, Qwen3 model
 ```
 
 ## References

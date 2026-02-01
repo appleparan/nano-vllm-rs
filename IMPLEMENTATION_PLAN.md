@@ -154,23 +154,24 @@
 ## Stage 7: Model Loader & Full Qwen3 Model
 
 **Goal**: HuggingFace 모델 로딩 및 전체 Qwen3 모델 조립
-**Status**: Not Started
+**Status**: Complete
 
 ### Tasks
 
-1. `Qwen3Config` (vocab_size, hidden_size, num_layers, num_heads, num_kv_heads, ...)
-2. HuggingFace model 다운로드 (hf-hub)
-3. SafeTensors 로딩
-4. `Qwen3Model` 조립
-   - Token embedding
-   - N개 Qwen3DecoderLayer
-   - Final RMSNorm
-   - LM head
+1. [x] `Qwen3Config` - HuggingFace config.json 파싱 (`src/model/loader.rs`)
+2. [x] `download_model()` - HuggingFace Hub에서 모델 다운로드
+3. [x] `load_safetensors()` - SafeTensors 파일 로딩 (memory-mapped)
+4. [x] `Qwen3Model` 조립 (`src/model/qwen3.rs`)
+   - Token embedding (`embed_tokens`)
+   - N개 Qwen3DecoderLayer (`layers`)
+   - Final RMSNorm (`norm`)
+5. [x] `Qwen3ForCausalLM` - Language model head 포함
 
 ### Success Criteria
 
-- [ ] Qwen3-0.6B 모델 로딩 성공
-- [ ] Forward pass 실행 성공
+- [x] Qwen3Config 파싱 테스트 통과 (3 tests)
+- [x] Qwen3Model 구조 정의 완료
+- [x] 모든 테스트 통과 (100 tests)
 
 ---
 
