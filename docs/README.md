@@ -8,7 +8,7 @@ This project follows a bottom-up implementation approach, building from low-leve
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│                    Stage 11: Speculative Decoding           │
+│                    Stage 11: Speculative Decoding ✓ Complete│
 │                    (Draft-Verify Decoding)                  │
 ├─────────────────────────────────────────────────────────────┤
 │                    Stage 10: Flash Attention    ✓ Complete  │
@@ -313,9 +313,43 @@ With the standard attention working, Flash Attention provides a drop-in replacem
 - Runs faster by reducing HBM access
 - Enables processing of much longer context lengths
 
-### Stage 11: Speculative Decoding (Optional - Not Started)
+### Stage 11: Speculative Decoding
 
-Draft-verify approach for faster generation using a smaller draft model.
+- [Speculative Decoding](speculative_decoding.md) - Draft-verify decoding algorithm explained
+
+Accelerates generation using a smaller draft model for speculation.
+
+**Implemented:**
+
+| File | Type | Description |
+| ---- | ---- | ----------- |
+| `src/speculative/config.rs` | `SpeculativeConfig` | num_speculative_tokens, draft_model_id |
+| `src/speculative/sampler.rs` | `RejectionSampler` | Rejection sampling for token verification |
+| `src/speculative/engine.rs` | `SpeculativeEngine` | Draft-verify workflow orchestration |
+| `src/engine/llm.rs` | `new_with_speculative()` | LLMEngine with speculative support |
+| `src/main.rs` | CLI | `--speculative`, `--draft-model` flags |
+
+**Model Configuration:**
+
+| Role | Model | Parameters |
+|------|-------|------------|
+| Target | Qwen/Qwen3-4B | 4B |
+| Draft | Qwen/Qwen3-0.6B | 0.6B |
+
+**Key Concepts:**
+
+- **Draft Phase**: Small model generates K tokens speculatively
+- **Verify Phase**: Large model verifies all K+1 positions in one forward pass
+- **Rejection Sampling**: Accept/reject based on probability ratio
+- **Expected Speedup**: 2-3x with well-matched draft model
+
+**Why this order?**
+
+With all core components complete, speculative decoding provides significant throughput improvement by:
+
+- Reducing the number of expensive target model forward passes
+- Trading small model compute for large model efficiency
+- Maintaining exact output distribution through rejection sampling
 
 ## Key Design Decisions
 
@@ -376,6 +410,11 @@ src/
 │   ├── mod.rs
 │   ├── sampler.rs      # Token sampling (temperature, top_k, top_p)
 │   └── llm.rs          # LLMEngine orchestration
+├── speculative/
+│   ├── mod.rs
+│   ├── config.rs       # SpeculativeConfig
+│   ├── sampler.rs      # RejectionSampler
+│   └── engine.rs       # SpeculativeEngine
 └── scheduler/
     ├── mod.rs
     └── batch.rs        # Scheduler with continuous batching
@@ -392,7 +431,8 @@ docs/
 ├── qwen3_architecture.md # Qwen3 model architecture
 ├── model_loader.md     # HuggingFace integration, Qwen3 model
 ├── engine.md           # Sampler & LLMEngine
-└── flash_attention.md  # Flash Attention algorithm explained
+├── flash_attention.md  # Flash Attention algorithm explained
+└── speculative_decoding.md # Speculative Decoding algorithm explained
 ```
 
 ## References
@@ -400,4 +440,6 @@ docs/
 - [vLLM Paper](https://arxiv.org/abs/2309.06180) - Efficient Memory Management for Large Language Model Serving with PagedAttention
 - [Flash Attention](https://arxiv.org/abs/2205.14135) - Fast and Memory-Efficient Exact Attention with IO-Awareness
 - [Flash Attention 2](https://arxiv.org/abs/2307.08691) - Faster Attention with Better Parallelism and Work Partitioning
+- [Speculative Decoding](https://arxiv.org/abs/2211.17192) - Fast Inference from Transformers via Speculative Decoding
+- [Speculative Sampling](https://arxiv.org/abs/2302.01318) - Accelerating Large Language Model Decoding with Speculative Sampling
 - [nano-vllm (Python)](https://github.com/ovshake/nano-vllm) - Reference implementation
