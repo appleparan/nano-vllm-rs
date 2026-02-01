@@ -16,6 +16,7 @@ pub mod model;
 pub mod scheduler;
 pub mod speculative;
 
+pub use attention::{flash_attention, flash_attention_cpu, FlashAttentionConfig};
 pub use config::{EngineConfig, ModelConfig, SamplingConfig, SchedulerConfig};
 pub use engine::{GenerationOutput, GenerationRequest, LLMEngine, Sampler};
 pub use error::{Error, Result};

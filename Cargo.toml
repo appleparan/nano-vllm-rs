@@ -39,6 +39,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 [dev-dependencies]
 criterion = "0.8.1"
 
+[features]
+default = []
+cuda = ["candle-core/cuda"]
+
 [[bin]]
 name = "nano-vllm"
 path = "src/main.rs"
