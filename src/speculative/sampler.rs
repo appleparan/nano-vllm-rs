@@ -3,7 +3,7 @@
 //! Implements the token verification algorithm that ensures the output
 //! distribution matches the target model exactly.
 
-use candle_core::{IndexOp, Result, Tensor, D};
+use candle_core::{D, IndexOp, Result, Tensor};
 use rand::distributions::Distribution;
 use rand::{Rng, SeedableRng};
 
@@ -75,8 +75,7 @@ impl RejectionSampler {
 
         if draft_shape.len() != 2 || target_shape.len() != 2 {
             return Err(candle_core::Error::Msg(format!(
-                "Expected 2D tensors, got draft: {:?}, target: {:?}",
-                draft_shape, target_shape
+                "Expected 2D tensors, got draft: {draft_shape:?}, target: {target_shape:?}"
             )));
         }
 
@@ -101,9 +100,7 @@ impl RejectionSampler {
         let draft_probs = self.logits_to_probs(draft_logits, temperature)?;
         let target_probs = self.logits_to_probs(target_logits, temperature)?;
 
-        for i in 0..k {
-            let draft_token = draft_tokens[i];
-
+        for (i, &draft_token) in draft_tokens.iter().enumerate() {
             // Get probabilities for the draft token
             let p_draft = self.get_prob(&draft_probs, i, draft_token)?;
             let p_target = self.get_prob(&target_probs, i, draft_token)?;
@@ -124,8 +121,7 @@ impl RejectionSampler {
                 accepted.push(draft_token);
             } else {
                 // Reject: sample from adjusted distribution
-                let final_token =
-                    self.sample_adjusted(&target_probs, &draft_probs, i)?;
+                let final_token = self.sample_adjusted(&target_probs, &draft_probs, i)?;
                 let num_accepted = accepted.len();
                 return Ok((accepted, final_token, num_accepted));
             }
@@ -242,10 +238,10 @@ mod tests {
     #[test]
     fn test_sampler_creation() {
         let sampler = RejectionSampler::new();
-        assert!(format!("{:?}", sampler).contains("RejectionSampler"));
+        assert!(format!("{sampler:?}").contains("RejectionSampler"));
 
         let seeded = RejectionSampler::with_seed(42);
-        assert!(format!("{:?}", seeded).contains("RejectionSampler"));
+        assert!(format!("{seeded:?}").contains("RejectionSampler"));
     }
 
     #[test]
@@ -336,13 +332,9 @@ mod tests {
         let k = 2;
 
         // Create logits with some variation
-        let draft_logits =
-            Tensor::new(&[[1.0f32; 10], [1.0f32; 10]], &device).unwrap();
-        let target_logits = Tensor::new(
-            &[[1.0f32; 10], [1.0f32; 10], [1.0f32; 10]],
-            &device,
-        )
-        .unwrap();
+        let draft_logits = Tensor::new(&[[1.0f32; 10], [1.0f32; 10]], &device).unwrap();
+        let target_logits =
+            Tensor::new(&[[1.0f32; 10], [1.0f32; 10], [1.0f32; 10]], &device).unwrap();
 
         let draft_tokens: Vec<u32> = vec![0, 1];
 
@@ -370,10 +362,8 @@ mod tests {
         let k = 4;
         let vocab_size = 50;
 
-        let draft_logits =
-            Tensor::randn(0.0f32, 1.0, (k, vocab_size), &device).unwrap();
-        let target_logits =
-            Tensor::randn(0.0f32, 1.0, (k + 1, vocab_size), &device).unwrap();
+        let draft_logits = Tensor::randn(0.0f32, 1.0, (k, vocab_size), &device).unwrap();
+        let target_logits = Tensor::randn(0.0f32, 1.0, (k + 1, vocab_size), &device).unwrap();
 
         let draft_tokens: Vec<u32> = vec![5, 10, 15, 20];
 

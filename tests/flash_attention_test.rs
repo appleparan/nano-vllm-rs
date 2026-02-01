@@ -1,7 +1,7 @@
 //! Integration tests for Flash Attention.
 
-use candle_core::{Device, Tensor, D};
-use nano_vllm::{flash_attention, flash_attention_cpu, FlashAttentionConfig};
+use candle_core::{D, Device, Tensor};
+use nano_vllm::{FlashAttentionConfig, flash_attention, flash_attention_cpu};
 
 fn test_device() -> Device {
     Device::Cpu
@@ -38,12 +38,9 @@ fn test_flash_attention_various_sizes() {
     ];
 
     for (batch, seq_len, num_heads, head_dim) in test_cases {
-        let q =
-            Tensor::randn(0.0f32, 1.0, (batch, seq_len, num_heads, head_dim), &device).unwrap();
-        let k =
-            Tensor::randn(0.0f32, 1.0, (batch, seq_len, num_heads, head_dim), &device).unwrap();
-        let v =
-            Tensor::randn(0.0f32, 1.0, (batch, seq_len, num_heads, head_dim), &device).unwrap();
+        let q = Tensor::randn(0.0f32, 1.0, (batch, seq_len, num_heads, head_dim), &device).unwrap();
+        let k = Tensor::randn(0.0f32, 1.0, (batch, seq_len, num_heads, head_dim), &device).unwrap();
+        let v = Tensor::randn(0.0f32, 1.0, (batch, seq_len, num_heads, head_dim), &device).unwrap();
 
         let config = FlashAttentionConfig::new(head_dim, true);
         let output = flash_attention_cpu(&q, &k, &v, &config).unwrap();
@@ -86,10 +83,20 @@ fn test_flash_attention_gqa() {
     let head_dim = 32;
 
     let q = Tensor::randn(0.0f32, 1.0, (batch, seq_len, num_heads, head_dim), &device).unwrap();
-    let k =
-        Tensor::randn(0.0f32, 1.0, (batch, seq_len, num_kv_heads, head_dim), &device).unwrap();
-    let v =
-        Tensor::randn(0.0f32, 1.0, (batch, seq_len, num_kv_heads, head_dim), &device).unwrap();
+    let k = Tensor::randn(
+        0.0f32,
+        1.0,
+        (batch, seq_len, num_kv_heads, head_dim),
+        &device,
+    )
+    .unwrap();
+    let v = Tensor::randn(
+        0.0f32,
+        1.0,
+        (batch, seq_len, num_kv_heads, head_dim),
+        &device,
+    )
+    .unwrap();
 
     let config = FlashAttentionConfig::new(head_dim, true);
     let output = flash_attention_cpu(&q, &k, &v, &config).unwrap();

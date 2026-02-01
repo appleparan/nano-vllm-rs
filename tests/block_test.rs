@@ -1,6 +1,6 @@
 //! Integration tests for Block and BlockTable.
 
-use nano_vllm::core::block::{compute_num_blocks, hash_token_block, Block, BlockTable};
+use nano_vllm::core::block::{Block, BlockTable, compute_num_blocks, hash_token_block};
 
 #[test]
 fn test_block_creation() {

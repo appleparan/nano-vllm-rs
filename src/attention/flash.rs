@@ -19,7 +19,7 @@
 //! - FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning
 //!   <https://arxiv.org/abs/2307.08691>
 
-use candle_core::{Device, Result, Tensor, D};
+use candle_core::{D, Device, Result, Tensor};
 
 /// Configuration for Flash Attention.
 #[derive(Debug, Clone)]
@@ -160,8 +160,8 @@ pub fn flash_attention_cpu(
 
     let block_size_q = config.block_size_q.min(seq_len_q);
     let block_size_kv = config.block_size_kv.min(seq_len_kv);
-    let num_blocks_q = (seq_len_q + block_size_q - 1) / block_size_q;
-    let num_blocks_kv = (seq_len_kv + block_size_kv - 1) / block_size_kv;
+    let num_blocks_q = seq_len_q.div_ceil(block_size_q);
+    let num_blocks_kv = seq_len_kv.div_ceil(block_size_kv);
 
     // Initialize output tensor
     let mut output = Tensor::zeros(
@@ -183,15 +183,14 @@ pub fn flash_attention_cpu(
         // m: running max per row, l: running sum per row
         // Shape: [batch, num_heads, q_len]
         let neg_inf = f32::NEG_INFINITY;
-        let mut m_i = Tensor::full(
-            neg_inf,
-            (batch_size, num_heads, q_len),
-            q.device(),
-        )?
-        .to_dtype(q.dtype())?;
+        let mut m_i = Tensor::full(neg_inf, (batch_size, num_heads, q_len), q.device())?
+            .to_dtype(q.dtype())?;
         let mut l_i = Tensor::zeros((batch_size, num_heads, q_len), q.dtype(), q.device())?;
-        let mut o_i =
-            Tensor::zeros((batch_size, num_heads, q_len, head_dim), q.dtype(), q.device())?;
+        let mut o_i = Tensor::zeros(
+            (batch_size, num_heads, q_len, head_dim),
+            q.dtype(),
+            q.device(),
+        )?;
 
         // Process each key/value block
         for kv_block_idx in 0..num_blocks_kv {
@@ -250,7 +249,8 @@ pub fn flash_attention_cpu(
             let l_new_expanded = l_new.unsqueeze(D::Minus1)?;
 
             // Rescale old output
-            let scale_old = (l_i_expanded.broadcast_mul(&alpha_expanded))?.broadcast_div(&l_new_expanded)?;
+            let scale_old =
+                (l_i_expanded.broadcast_mul(&alpha_expanded))?.broadcast_div(&l_new_expanded)?;
             let o_scaled = o_i.broadcast_mul(&scale_old)?;
 
             // Compute P_ij @ V_j
@@ -303,11 +303,7 @@ fn apply_causal_mask_block(scores: &Tensor, q_start: usize, kv_start: usize) -> 
             (0..kv_len)
                 .map(move |j| {
                     let global_k = kv_start + j;
-                    if global_k > global_q {
-                        neg_inf
-                    } else {
-                        0.0
-                    }
+                    if global_k > global_q { neg_inf } else { 0.0 }
                 })
                 .collect::<Vec<_>>()
         })
@@ -402,8 +398,7 @@ mod tests {
         let v = Tensor::randn(0.0f32, 1.0, (batch, seq_len, num_heads, head_dim), &device).unwrap();
 
         // Flash Attention
-        let config = FlashAttentionConfig::new(head_dim, true)
-            .with_block_sizes(4, 4); // Small blocks for testing
+        let config = FlashAttentionConfig::new(head_dim, true).with_block_sizes(4, 4); // Small blocks for testing
         let flash_output = flash_attention_cpu(&q, &k, &v, &config).unwrap();
 
         // Naive SDPA
@@ -411,9 +406,17 @@ mod tests {
 
         // Compare outputs (should be numerically close)
         let diff = (&flash_output - &naive_output).unwrap().abs().unwrap();
-        let max_diff: f32 = diff.max(D::Minus1).unwrap().max(D::Minus1).unwrap()
-            .max(D::Minus1).unwrap().max(D::Minus1).unwrap()
-            .to_scalar().unwrap();
+        let max_diff: f32 = diff
+            .max(D::Minus1)
+            .unwrap()
+            .max(D::Minus1)
+            .unwrap()
+            .max(D::Minus1)
+            .unwrap()
+            .max(D::Minus1)
+            .unwrap()
+            .to_scalar()
+            .unwrap();
 
         assert!(
             max_diff < 1e-4,
@@ -422,13 +425,7 @@ mod tests {
     }
 
     /// Naive SDPA implementation for comparison.
-    fn naive_sdpa(
-        q: &Tensor,
-        k: &Tensor,
-        v: &Tensor,
-        scale: f32,
-        causal: bool,
-    ) -> Result<Tensor> {
+    fn naive_sdpa(q: &Tensor, k: &Tensor, v: &Tensor, scale: f32, causal: bool) -> Result<Tensor> {
         let (_batch, seq_len, _num_heads, _head_dim) = q.dims4()?;
 
         // Transpose to [batch, num_heads, seq_len, head_dim]

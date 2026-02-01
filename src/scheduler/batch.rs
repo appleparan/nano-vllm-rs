@@ -253,11 +253,11 @@ impl Scheduler {
                 break;
             }
 
-            if let Some(seq) = self.sequences.get(&seq_id) {
-                if seq.is_prefill_complete() {
-                    outputs.decode_sequences.push(seq_id);
-                    outputs.num_decode_tokens += 1; // Decode is always 1 token
-                }
+            if let Some(seq) = self.sequences.get(&seq_id)
+                && seq.is_prefill_complete()
+            {
+                outputs.decode_sequences.push(seq_id);
+                outputs.num_decode_tokens += 1; // Decode is always 1 token
             }
         }
     }
@@ -273,11 +273,11 @@ impl Scheduler {
 
                 if blocks_needed > blocks_allocated {
                     let new_blocks_needed = blocks_needed - blocks_allocated;
-                    if self.block_manager.can_allocate(new_blocks_needed) {
-                        if let Ok(block_ids) = self.block_manager.allocate_many(new_blocks_needed) {
-                            for block_id in block_ids {
-                                seq.block_table_mut().append_block(block_id);
-                            }
+                    if self.block_manager.can_allocate(new_blocks_needed)
+                        && let Ok(block_ids) = self.block_manager.allocate_many(new_blocks_needed)
+                    {
+                        for block_id in block_ids {
+                            seq.block_table_mut().append_block(block_id);
                         }
                     }
                 }
@@ -351,25 +351,25 @@ impl Scheduler {
         // Actually admit sequences
         for (seq_id, tokens_to_prefill, blocks_needed) in to_admit {
             // Allocate blocks
-            if let Ok(block_ids) = self.block_manager.allocate_many(blocks_needed) {
-                if let Some(seq) = self.sequences.get_mut(&seq_id) {
-                    // Assign blocks
-                    for block_id in block_ids {
-                        seq.block_table_mut().append_block(block_id);
-                    }
-
-                    // Transition to running
-                    let _ = seq.set_running();
-
-                    // Track in outputs
-                    outputs.prefill_sequences.push(seq_id);
-                    outputs
-                        .prefill_chunk_sizes
-                        .insert(seq_id, tokens_to_prefill);
-
-                    // Add to running set
-                    self.running_ids.push(seq_id);
+            if let Ok(block_ids) = self.block_manager.allocate_many(blocks_needed)
+                && let Some(seq) = self.sequences.get_mut(&seq_id)
+            {
+                // Assign blocks
+                for block_id in block_ids {
+                    seq.block_table_mut().append_block(block_id);
                 }
+
+                // Transition to running
+                let _ = seq.set_running();
+
+                // Track in outputs
+                outputs.prefill_sequences.push(seq_id);
+                outputs
+                    .prefill_chunk_sizes
+                    .insert(seq_id, tokens_to_prefill);
+
+                // Add to running set
+                self.running_ids.push(seq_id);
             }
         }
     }
@@ -413,11 +413,11 @@ impl Scheduler {
         let mut lowest_idx = None;
 
         for (idx, &seq_id) in self.running_ids.iter().enumerate() {
-            if let Some(seq) = self.sequences.get(&seq_id) {
-                if seq.priority() < lowest_priority {
-                    lowest_priority = seq.priority();
-                    lowest_idx = Some(idx);
-                }
+            if let Some(seq) = self.sequences.get(&seq_id)
+                && seq.priority() < lowest_priority
+            {
+                lowest_priority = seq.priority();
+                lowest_idx = Some(idx);
             }
         }
 

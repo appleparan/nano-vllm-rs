@@ -13,5 +13,5 @@
 pub mod flash;
 pub mod paged;
 
-pub use flash::{flash_attention, flash_attention_cpu, FlashAttentionConfig};
+pub use flash::{FlashAttentionConfig, flash_attention, flash_attention_cpu};
 pub use paged::{paged_attention, prefill_attention, write_kv_to_cache};

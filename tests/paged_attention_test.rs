@@ -62,7 +62,13 @@ fn test_prefill_attention_causal_mask() {
     let output = prefill_attention(&q, &k, &v, num_heads, num_kv_heads, scale, true).unwrap();
 
     // Verify output is finite
-    let output_sum: f32 = output.abs().unwrap().sum_all().unwrap().to_scalar().unwrap();
+    let output_sum: f32 = output
+        .abs()
+        .unwrap()
+        .sum_all()
+        .unwrap()
+        .to_scalar()
+        .unwrap();
     assert!(output_sum.is_finite());
 }
 
@@ -202,9 +208,8 @@ fn test_write_kv_to_cache() {
 
     // K/V for 3 tokens
     let key = Tensor::ones((1, 3, num_kv_heads, head_dim), DType::F32, &device).unwrap();
-    let value = (Tensor::ones((1, 3, num_kv_heads, head_dim), DType::F32, &device).unwrap()
-        * 2.0)
-        .unwrap();
+    let value =
+        (Tensor::ones((1, 3, num_kv_heads, head_dim), DType::F32, &device).unwrap() * 2.0).unwrap();
 
     // Slot mapping: tokens go to slots 0, 1, 4 (second block, first slot)
     let slot_mapping = vec![0, 1, 4];

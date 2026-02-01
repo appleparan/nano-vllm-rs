@@ -6,7 +6,7 @@
 //! Reference: <https://arxiv.org/abs/2002.05202>
 
 use candle_core::{DType, Device, Module, Result, Tensor};
-use candle_nn::{linear_no_bias, Linear, VarBuilder};
+use candle_nn::{Linear, VarBuilder, linear_no_bias};
 
 /// SiLU (Sigmoid Linear Unit) activation function.
 ///

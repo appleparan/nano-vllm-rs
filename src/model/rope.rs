@@ -46,7 +46,7 @@ impl RotaryEmbedding {
         dtype: DType,
         device: &Device,
     ) -> Result<Self> {
-        assert!(dim % 2 == 0, "RoPE dimension must be even");
+        assert!(dim.is_multiple_of(2), "RoPE dimension must be even");
 
         // Compute inverse frequencies: 1 / (theta^(2i/dim)) for i in 0..dim/2
         // This determines the rotation frequency for each dimension pair

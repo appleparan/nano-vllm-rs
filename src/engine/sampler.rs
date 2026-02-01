@@ -28,9 +28,9 @@
 //! Selected token
 //! ```
 
-use candle_core::{IndexOp, Result, Tensor, D};
-use rand::distributions::Distribution;
+use candle_core::{D, IndexOp, Result, Tensor};
 use rand::SeedableRng;
+use rand::distributions::Distribution;
 
 use crate::config::SamplingConfig;
 

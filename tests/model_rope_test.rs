@@ -54,17 +54,13 @@ fn test_rope_incremental_decode() {
     let rope = RotaryEmbedding::new(head_dim, 1024, 10000.0, DType::F32, &device).unwrap();
 
     // Prefill: positions 0-3
-    let q_prefill =
-        Tensor::randn(0.0f32, 1.0, (batch, 4, num_heads, head_dim), &device).unwrap();
-    let k_prefill =
-        Tensor::randn(0.0f32, 1.0, (batch, 4, num_heads, head_dim), &device).unwrap();
+    let q_prefill = Tensor::randn(0.0f32, 1.0, (batch, 4, num_heads, head_dim), &device).unwrap();
+    let k_prefill = Tensor::randn(0.0f32, 1.0, (batch, 4, num_heads, head_dim), &device).unwrap();
     let (_q1, _k1) = rope.apply(&q_prefill, &k_prefill, 0).unwrap();
 
     // Decode: position 4
-    let q_decode =
-        Tensor::randn(0.0f32, 1.0, (batch, 1, num_heads, head_dim), &device).unwrap();
-    let k_decode =
-        Tensor::randn(0.0f32, 1.0, (batch, 1, num_heads, head_dim), &device).unwrap();
+    let q_decode = Tensor::randn(0.0f32, 1.0, (batch, 1, num_heads, head_dim), &device).unwrap();
+    let k_decode = Tensor::randn(0.0f32, 1.0, (batch, 1, num_heads, head_dim), &device).unwrap();
     let (q2, k2) = rope.apply(&q_decode, &k_decode, 4).unwrap();
 
     // Check shapes for decode
@@ -92,7 +88,10 @@ fn test_rotate_half() {
     let orig_vec: Vec<f32> = x.flatten_all().unwrap().to_vec1().unwrap();
 
     // At position 5, rotation should change the values
-    assert!(rotated_vec != orig_vec, "Rotation should produce different values at non-zero position");
+    assert!(
+        rotated_vec != orig_vec,
+        "Rotation should produce different values at non-zero position"
+    );
 }
 
 #[test]

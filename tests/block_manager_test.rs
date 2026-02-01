@@ -1,8 +1,8 @@
 //! Integration tests for BlockManager.
 
+use nano_vllm::Error;
 use nano_vllm::core::block::hash_token_block;
 use nano_vllm::core::block_manager::BlockManager;
-use nano_vllm::Error;
 
 #[test]
 fn test_block_manager_creation() {

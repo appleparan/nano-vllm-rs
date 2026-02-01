@@ -111,9 +111,19 @@ fn test_attention_with_kv_cache() {
 #[test]
 fn test_repeat_kv() {
     let device = test_device();
-    let attn =
-        Qwen3Attention::new_random(64, 4, 2, 16, 1024, 10000.0, 1e-6, false, DType::F32, &device)
-            .unwrap();
+    let attn = Qwen3Attention::new_random(
+        64,
+        4,
+        2,
+        16,
+        1024,
+        10000.0,
+        1e-6,
+        false,
+        DType::F32,
+        &device,
+    )
+    .unwrap();
 
     // Test via forward pass - GQA expansion happens internally
     let x = Tensor::randn(0.0f32, 0.1, (1, 4, 64), &device).unwrap();
@@ -126,16 +136,32 @@ fn test_repeat_kv() {
 #[test]
 fn test_causal_mask_prefill() {
     let device = test_device();
-    let attn =
-        Qwen3Attention::new_random(64, 4, 2, 16, 1024, 10000.0, 1e-6, false, DType::F32, &device)
-            .unwrap();
+    let attn = Qwen3Attention::new_random(
+        64,
+        4,
+        2,
+        16,
+        1024,
+        10000.0,
+        1e-6,
+        false,
+        DType::F32,
+        &device,
+    )
+    .unwrap();
 
     // Test via forward pass - causal masking is applied internally
     let x = Tensor::randn(0.0f32, 0.1, (1, 4, 64), &device).unwrap();
     let output = attn.forward(&x, 0, None, None).unwrap();
 
     // Verify output is finite
-    let output_sum: f32 = output.abs().unwrap().sum_all().unwrap().to_scalar().unwrap();
+    let output_sum: f32 = output
+        .abs()
+        .unwrap()
+        .sum_all()
+        .unwrap()
+        .to_scalar()
+        .unwrap();
     assert!(output_sum.is_finite());
 }
 
@@ -146,9 +172,19 @@ fn test_causal_mask_decode() {
     let num_kv_heads = 2;
     let head_dim = 16;
 
-    let attn =
-        Qwen3Attention::new_random(hidden_size, 4, num_kv_heads, head_dim, 1024, 10000.0, 1e-6, false, DType::F32, &device)
-            .unwrap();
+    let attn = Qwen3Attention::new_random(
+        hidden_size,
+        4,
+        num_kv_heads,
+        head_dim,
+        1024,
+        10000.0,
+        1e-6,
+        false,
+        DType::F32,
+        &device,
+    )
+    .unwrap();
 
     // Prefill first
     let x_prefill = Tensor::randn(0.0f32, 0.1, (1, 4, hidden_size), &device).unwrap();
@@ -156,11 +192,15 @@ fn test_causal_mask_decode() {
         Tensor::zeros((1, 0, num_kv_heads, head_dim), DType::F32, &device).unwrap(),
         Tensor::zeros((1, 0, num_kv_heads, head_dim), DType::F32, &device).unwrap(),
     );
-    let _ = attn.forward(&x_prefill, 0, Some(&mut kv_cache), None).unwrap();
+    let _ = attn
+        .forward(&x_prefill, 0, Some(&mut kv_cache), None)
+        .unwrap();
 
     // Decode: single token can attend to all cached
     let x_decode = Tensor::randn(0.0f32, 0.1, (1, 1, hidden_size), &device).unwrap();
-    let output = attn.forward(&x_decode, 4, Some(&mut kv_cache), None).unwrap();
+    let output = attn
+        .forward(&x_decode, 4, Some(&mut kv_cache), None)
+        .unwrap();
 
     assert_eq!(output.dims(), &[1, 1, hidden_size]);
 }

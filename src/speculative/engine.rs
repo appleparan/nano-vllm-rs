@@ -3,7 +3,7 @@
 //! Orchestrates draft model, target model, and rejection sampling
 //! for faster token generation.
 
-use candle_core::{DType, Device, Result, Tensor, D};
+use candle_core::{D, DType, Device, Result, Tensor};
 
 use super::config::SpeculativeConfig;
 use super::sampler::RejectionSampler;
@@ -101,11 +101,7 @@ impl SpeculativeEngine {
     /// `(draft_tokens, draft_logits)`:
     /// - `draft_tokens`: K generated token IDs
     /// - `draft_logits`: Logits for each draft position [K, vocab_size]
-    fn draft(
-        &mut self,
-        input_ids: &Tensor,
-        start_pos: usize,
-    ) -> Result<(Vec<u32>, Tensor)> {
+    fn draft(&mut self, input_ids: &Tensor, start_pos: usize) -> Result<(Vec<u32>, Tensor)> {
         let k = self.config.num_speculative_tokens;
         let mut tokens = Vec::with_capacity(k);
         let mut all_logits = Vec::with_capacity(k);
@@ -282,8 +278,7 @@ mod tests {
     fn test_config_accessor() {
         // This test just verifies the config accessor compiles correctly.
         // Full tests are in speculative_inference_test.rs
-        let config = SpeculativeConfig::new("Qwen/Qwen3-0.6B")
-            .num_tokens(4);
+        let config = SpeculativeConfig::new("Qwen/Qwen3-0.6B").num_tokens(4);
 
         assert_eq!(config.num_speculative_tokens, 4);
         assert_eq!(config.draft_model_id, "Qwen/Qwen3-0.6B");

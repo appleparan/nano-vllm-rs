@@ -45,13 +45,13 @@ use candle_core::{DType, Device, Tensor};
 use tokenizers::Tokenizer;
 
 use super::sampler::Sampler;
+use crate::SchedulerConfig;
 use crate::config::{EngineConfig, SamplingConfig};
 use crate::core::sequence::{FinishReason, Sequence, SequenceId};
 use crate::error::{Error, Result};
 use crate::model::{Qwen3Config, Qwen3ForCausalLM};
 use crate::scheduler::Scheduler;
 use crate::speculative::{SpeculativeConfig, SpeculativeEngine};
-use crate::SchedulerConfig;
 
 /// Output from a generation request.
 #[derive(Debug, Clone)]
@@ -284,11 +284,8 @@ impl LLMEngine {
             .unwrap_or(151643); // Qwen3 default EOS
 
         // Create speculative engine with both models
-        let speculative_engine = SpeculativeEngine::new(
-            target_model,
-            draft_model,
-            speculative_config,
-        );
+        let speculative_engine =
+            SpeculativeEngine::new(target_model, draft_model, speculative_config);
 
         Ok(Self {
             // In speculative mode, model is None
@@ -438,7 +435,9 @@ impl LLMEngine {
     fn forward_prefill(&mut self, input_ids: &Tensor, start_pos: usize) -> Result<Tensor> {
         if let Some(ref mut spec_engine) = self.speculative_engine {
             // Use speculative engine's target model for prefill
-            Ok(spec_engine.target_model_mut().forward(input_ids, start_pos)?)
+            Ok(spec_engine
+                .target_model_mut()
+                .forward(input_ids, start_pos)?)
         } else if let Some(ref mut model) = self.model {
             Ok(model.forward(input_ids, start_pos)?)
         } else {
@@ -478,7 +477,9 @@ impl LLMEngine {
         let logits = if let Some(ref mut model) = self.model {
             model.forward(&input_ids, 0)?
         } else {
-            return Err(Error::Config("No model available for standard decode".to_string()));
+            return Err(Error::Config(
+                "No model available for standard decode".to_string(),
+            ));
         };
 
         // Sample next token
@@ -500,7 +501,10 @@ impl LLMEngine {
     }
 
     /// Speculative decode: generate multiple tokens using draft-verify.
-    fn process_decode_speculative(&mut self, seq_id: SequenceId) -> Result<Option<GenerationOutput>> {
+    fn process_decode_speculative(
+        &mut self,
+        seq_id: SequenceId,
+    ) -> Result<Option<GenerationOutput>> {
         let sequence = self
             .scheduler
             .get_sequence(seq_id)
@@ -523,14 +527,13 @@ impl LLMEngine {
         let input_ids = Tensor::new(all_tokens.as_slice(), &self.device)?.unsqueeze(0)?;
 
         // Run speculative step
-        let spec_engine = self.speculative_engine.as_mut()
+        let spec_engine = self
+            .speculative_engine
+            .as_mut()
             .ok_or_else(|| Error::Config("Speculative engine not available".to_string()))?;
 
-        let new_tokens = spec_engine.speculative_step(
-            &input_ids,
-            0,
-            sampling_config.temperature,
-        )?;
+        let new_tokens =
+            spec_engine.speculative_step(&input_ids, 0, sampling_config.temperature)?;
 
         // Append all generated tokens and check for completion
         for &token in &new_tokens {

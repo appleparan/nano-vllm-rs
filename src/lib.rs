@@ -16,12 +16,12 @@ pub mod model;
 pub mod scheduler;
 pub mod speculative;
 
-pub use attention::{flash_attention, flash_attention_cpu, FlashAttentionConfig};
+pub use attention::{FlashAttentionConfig, flash_attention, flash_attention_cpu};
 pub use config::{EngineConfig, ModelConfig, SamplingConfig, SchedulerConfig};
 pub use engine::{GenerationOutput, GenerationRequest, LLMEngine, Sampler};
 pub use error::{Error, Result};
 pub use model::{
-    download_model, load_config, load_safetensors, ModelFiles, Qwen3Config, Qwen3ForCausalLM,
+    ModelFiles, Qwen3Config, Qwen3ForCausalLM, download_model, load_config, load_safetensors,
 };
 pub use scheduler::{Scheduler, SchedulerOutputs};
 pub use speculative::{RejectionSampler, SpeculativeConfig, SpeculativeEngine};

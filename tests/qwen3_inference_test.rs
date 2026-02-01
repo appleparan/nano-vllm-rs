@@ -10,8 +10,8 @@
 
 use candle_core::{DType, Device};
 use nano_vllm::{
-    download_model, load_config, load_safetensors, EngineConfig, GenerationRequest, LLMEngine,
-    Qwen3ForCausalLM,
+    EngineConfig, GenerationRequest, LLMEngine, Qwen3ForCausalLM, download_model, load_config,
+    load_safetensors,
 };
 
 const MODEL_ID: &str = "Qwen/Qwen3-0.6B";
@@ -85,8 +85,8 @@ fn test_model_download_and_load() {
     assert_eq!(config.hidden_size, 1024);
 
     // Load weights
-    let vb =
-        load_safetensors(&model_files.weights, DType::F32, &device).expect("Failed to load weights");
+    let vb = load_safetensors(&model_files.weights, DType::F32, &device)
+        .expect("Failed to load weights");
 
     // Create model
     let model = Qwen3ForCausalLM::new(&config, false, vb).expect("Failed to create model");
@@ -178,7 +178,11 @@ fn test_max_tokens_limit() {
         max_tokens
     );
 
-    println!("Tokens generated: {} (max: {})", output.output_tokens.len(), max_tokens);
+    println!(
+        "Tokens generated: {} (max: {})",
+        output.output_tokens.len(),
+        max_tokens
+    );
 }
 
 #[test]
@@ -186,11 +190,7 @@ fn test_max_tokens_limit() {
 fn test_multiple_prompts() {
     let mut engine = create_engine().expect("Failed to create engine");
 
-    let prompts = vec![
-        "Hello, how are you?",
-        "What is 2 + 2?",
-        "The sun is",
-    ];
+    let prompts = vec!["Hello, how are you?", "What is 2 + 2?", "The sun is"];
 
     for prompt in &prompts {
         let request = GenerationRequest::new(*prompt)
@@ -238,12 +238,10 @@ fn test_tokenizer_roundtrip() {
     let token_ids = encoding.get_ids();
 
     // Decode
-    let decoded = tokenizer
-        .decode(token_ids, true)
-        .expect("Failed to decode");
+    let decoded = tokenizer.decode(token_ids, true).expect("Failed to decode");
 
     println!("Original: {text}");
-    println!("Token IDs: {:?}", token_ids);
+    println!("Token IDs: {token_ids:?}");
     println!("Decoded: {decoded}");
 
     // Should be similar (might have minor differences due to normalization)
@@ -280,14 +278,18 @@ fn test_sampling_with_temperature() {
     let request1 = GenerationRequest::new(prompt)
         .max_tokens(10)
         .temperature(0.0);
-    engine1.add_request(request1).expect("Failed to add request");
+    engine1
+        .add_request(request1)
+        .expect("Failed to add request");
     let output1 = engine1.generate().expect("Failed to generate");
 
     // With temperature 1.0 (more random)
     let request2 = GenerationRequest::new(prompt)
         .max_tokens(10)
         .temperature(1.0);
-    engine2.add_request(request2).expect("Failed to add request");
+    engine2
+        .add_request(request2)
+        .expect("Failed to add request");
     let output2 = engine2.generate().expect("Failed to generate");
 
     println!("Greedy (temp=0): {}", output1[0].output_text);

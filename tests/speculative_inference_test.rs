@@ -10,8 +10,8 @@
 
 use candle_core::{DType, Device};
 use nano_vllm::{
-    download_model, load_config, load_safetensors, EngineConfig, GenerationRequest, LLMEngine,
-    Qwen3ForCausalLM, SpeculativeConfig,
+    EngineConfig, GenerationRequest, LLMEngine, Qwen3ForCausalLM, SpeculativeConfig,
+    download_model, load_config, load_safetensors,
 };
 
 const TARGET_MODEL_ID: &str = "Qwen/Qwen3-4B";
@@ -55,8 +55,7 @@ fn create_speculative_engine() -> anyhow::Result<LLMEngine> {
     };
 
     // Create speculative config
-    let speculative_config = SpeculativeConfig::new(DRAFT_MODEL_ID)
-        .num_tokens(4);
+    let speculative_config = SpeculativeConfig::new(DRAFT_MODEL_ID).num_tokens(4);
 
     // Create engine with speculative decoding
     let engine = LLMEngine::new_with_speculative(
@@ -139,7 +138,9 @@ fn test_speculative_matches_standard() {
         .max_tokens(20)
         .temperature(0.0);
 
-    spec_engine.add_request(request).expect("Failed to add request");
+    spec_engine
+        .add_request(request)
+        .expect("Failed to add request");
     let spec_outputs = spec_engine.generate().expect("Failed to generate");
 
     // Generate with standard decoding
@@ -149,7 +150,9 @@ fn test_speculative_matches_standard() {
         .max_tokens(20)
         .temperature(0.0);
 
-    std_engine.add_request(request).expect("Failed to add request");
+    std_engine
+        .add_request(request)
+        .expect("Failed to add request");
     let std_outputs = std_engine.generate().expect("Failed to generate");
 
     // With temperature=0 (greedy), outputs should be similar
@@ -172,11 +175,7 @@ fn test_speculative_matches_standard() {
 fn test_speculative_multiple_prompts() {
     let mut engine = create_speculative_engine().expect("Failed to create speculative engine");
 
-    let prompts = vec![
-        "Hello, how are you?",
-        "What is 2 + 2?",
-        "The sun is",
-    ];
+    let prompts = vec!["Hello, how are you?", "What is 2 + 2?", "The sun is"];
 
     for prompt in &prompts {
         let request = GenerationRequest::new(*prompt)
@@ -201,23 +200,27 @@ fn test_speculative_multiple_prompts() {
 #[ignore]
 fn test_model_download() {
     // Just test that both models can be downloaded
-    let target_files = download_model(TARGET_MODEL_ID, REVISION)
-        .expect("Failed to download target model");
+    let target_files =
+        download_model(TARGET_MODEL_ID, REVISION).expect("Failed to download target model");
 
     assert!(target_files.config.exists(), "Target config should exist");
-    assert!(!target_files.weights.is_empty(), "Target weights should be downloaded");
+    assert!(
+        !target_files.weights.is_empty(),
+        "Target weights should be downloaded"
+    );
 
-    let draft_files = download_model(DRAFT_MODEL_ID, REVISION)
-        .expect("Failed to download draft model");
+    let draft_files =
+        download_model(DRAFT_MODEL_ID, REVISION).expect("Failed to download draft model");
 
     assert!(draft_files.config.exists(), "Draft config should exist");
-    assert!(!draft_files.weights.is_empty(), "Draft weights should be downloaded");
+    assert!(
+        !draft_files.weights.is_empty(),
+        "Draft weights should be downloaded"
+    );
 
     // Verify configs
-    let target_config = load_config(&target_files.config)
-        .expect("Failed to load target config");
-    let draft_config = load_config(&draft_files.config)
-        .expect("Failed to load draft config");
+    let target_config = load_config(&target_files.config).expect("Failed to load target config");
+    let draft_config = load_config(&draft_files.config).expect("Failed to load draft config");
 
     // Target should be larger than draft
     assert!(
@@ -225,8 +228,12 @@ fn test_model_download() {
         "Target should have more layers than draft"
     );
 
-    println!("Target: {} layers, hidden_size={}",
-        target_config.num_hidden_layers, target_config.hidden_size);
-    println!("Draft:  {} layers, hidden_size={}",
-        draft_config.num_hidden_layers, draft_config.hidden_size);
+    println!(
+        "Target: {} layers, hidden_size={}",
+        target_config.num_hidden_layers, target_config.hidden_size
+    );
+    println!(
+        "Draft:  {} layers, hidden_size={}",
+        draft_config.num_hidden_layers, draft_config.hidden_size
+    );
 }

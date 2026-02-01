@@ -27,7 +27,7 @@
 //!   Physical location = block_table[logical_block] * block_size + slot
 //! ```
 
-use candle_core::{Device, Tensor, D};
+use candle_core::{D, Device, Tensor};
 
 use crate::core::block::BlockTable;
 use crate::core::kv_cache::LayerKVCache;
@@ -367,11 +367,7 @@ fn create_decode_causal_mask(
             let query_pos = cached_len + i;
             (0..context_len).map(
                 move |key_pos| {
-                    if key_pos > query_pos {
-                        neg_inf
-                    } else {
-                        0.0f32
-                    }
+                    if key_pos > query_pos { neg_inf } else { 0.0f32 }
                 },
             )
         })

@@ -36,7 +36,7 @@
 //! ```
 
 use candle_core::{DType, Device, Module, Result, Tensor};
-use candle_nn::{embedding, linear_no_bias, Embedding, Linear, VarBuilder};
+use candle_nn::{Embedding, Linear, VarBuilder, embedding, linear_no_bias};
 
 use super::decoder::Qwen3DecoderLayer;
 use super::loader::Qwen3Config;

@@ -1,6 +1,6 @@
 //! Integration tests for Sequence.
 
-use nano_vllm::core::sequence::{FinishReason, Sequence, SequenceStatus, DEFAULT_PRIORITY};
+use nano_vllm::core::sequence::{DEFAULT_PRIORITY, FinishReason, Sequence, SequenceStatus};
 
 #[test]
 fn test_sequence_creation() {

@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use candle_core::{DType, Device};
 use candle_nn::VarBuilder;
-use hf_hub::{api::sync::Api, Repo, RepoType};
+use hf_hub::{Repo, RepoType, api::sync::Api};
 
 use crate::error::{Error, Result};
 

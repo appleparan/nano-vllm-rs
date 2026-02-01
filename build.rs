@@ -16,9 +16,7 @@ fn compile_cuda_kernels() {
     let cuda_files = ["kernels/flash_attn_fwd.cu"];
 
     // Check if nvcc is available
-    let nvcc_check = std::process::Command::new("nvcc")
-        .arg("--version")
-        .output();
+    let nvcc_check = std::process::Command::new("nvcc").arg("--version").output();
 
     if nvcc_check.is_err() {
         println!("cargo:warning=nvcc not found, skipping CUDA kernel compilation");
@@ -62,10 +60,7 @@ fn compile_cuda_kernels() {
     }
 
     // Only compile if we have files
-    if cuda_files
-        .iter()
-        .any(|f| std::path::Path::new(f).exists())
-    {
+    if cuda_files.iter().any(|f| std::path::Path::new(f).exists()) {
         build.compile("flash_attn_kernels");
 
         // Link CUDA libraries

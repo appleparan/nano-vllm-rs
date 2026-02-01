@@ -1,8 +1,8 @@
 //! Integration tests for Scheduler.
 
+use nano_vllm::SchedulerConfig;
 use nano_vllm::core::sequence::{FinishReason, Sequence, SequenceStatus};
 use nano_vllm::scheduler::batch::{Scheduler, SchedulerOutputs};
-use nano_vllm::SchedulerConfig;
 
 fn test_config() -> SchedulerConfig {
     SchedulerConfig {

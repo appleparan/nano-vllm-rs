@@ -6,12 +6,12 @@
 //! - KV cache support for incremental decoding
 //! - Optional Flash Attention for memory efficiency
 
-use candle_core::{DType, Device, Module, Result, Tensor, D};
-use candle_nn::{linear_no_bias, Linear, VarBuilder};
+use candle_core::{D, DType, Device, Module, Result, Tensor};
+use candle_nn::{Linear, VarBuilder, linear_no_bias};
 
 use super::norm::RmsNorm;
 use super::rope::RotaryEmbedding;
-use crate::attention::{flash_attention, FlashAttentionConfig};
+use crate::attention::{FlashAttentionConfig, flash_attention};
 
 /// Qwen3 Attention with Grouped Query Attention (GQA).
 ///
@@ -261,7 +261,15 @@ impl Qwen3Attention {
             self.flash_attention_forward(&q, &k, &v)?
         } else {
             // Standard scaled dot-product attention
-            self.standard_attention_forward(&q, &k, &v, seq_len, kv_seq_len, start_pos, attention_mask)?
+            self.standard_attention_forward(
+                &q,
+                &k,
+                &v,
+                seq_len,
+                kv_seq_len,
+                start_pos,
+                attention_mask,
+            )?
         };
 
         // Output projection
@@ -271,12 +279,7 @@ impl Qwen3Attention {
     /// Flash Attention forward pass.
     ///
     /// Uses the memory-efficient Flash Attention algorithm with O(n) memory.
-    fn flash_attention_forward(
-        &self,
-        q: &Tensor,
-        k: &Tensor,
-        v: &Tensor,
-    ) -> Result<Tensor> {
+    fn flash_attention_forward(&self, q: &Tensor, k: &Tensor, v: &Tensor) -> Result<Tensor> {
         let (batch_size, seq_len, _, _) = q.dims4()?;
 
         // Flash Attention config with causal masking
@@ -398,11 +401,7 @@ impl Qwen3Attention {
                     let query_pos = start_pos + i;
                     (0..kv_seq_len).map(
                         move |key_pos| {
-                            if key_pos > query_pos {
-                                neg_inf
-                            } else {
-                                0.0f32
-                            }
+                            if key_pos > query_pos { neg_inf } else { 0.0f32 }
                         },
                     )
                 })

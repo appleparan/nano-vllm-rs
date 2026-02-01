@@ -20,8 +20,8 @@ use clap::Parser;
 use tracing::{info, warn};
 
 use nano_vllm::{
-    download_model, load_config, load_safetensors, EngineConfig, GenerationRequest, LLMEngine,
-    Qwen3ForCausalLM, SpeculativeConfig,
+    EngineConfig, GenerationRequest, LLMEngine, Qwen3ForCausalLM, SpeculativeConfig,
+    download_model, load_config, load_safetensors,
 };
 
 /// nano-vllm: A minimalistic LLM inference engine
@@ -111,8 +111,8 @@ fn main() -> anyhow::Result<()> {
     let subtitle = "A minimalistic LLM inference engine in Rust";
 
     println!("╔════════════════════════════════════════════════════════════╗");
-    println!("║{:^60}║", title);
-    println!("║{:^60}║", subtitle);
+    println!("║{title:^60}║");
+    println!("║{subtitle:^60}║");
     println!("╚════════════════════════════════════════════════════════════╝");
     println!();
 
@@ -128,7 +128,10 @@ fn main() -> anyhow::Result<()> {
     info!("Using device: {:?}", device);
 
     // Download model from HuggingFace
-    info!("Downloading model: {} (revision: {})", args.model, args.revision);
+    info!(
+        "Downloading model: {} (revision: {})",
+        args.model, args.revision
+    );
     let start = Instant::now();
     let model_files = download_model(&args.model, &args.revision)?;
     info!("Model downloaded in {:?}", start.elapsed());
@@ -149,7 +152,10 @@ fn main() -> anyhow::Result<()> {
     info!("Weights loaded in {:?}", start.elapsed());
 
     // Create target model
-    info!("Creating Qwen3 model (flash_attention={})...", args.flash_attention);
+    info!(
+        "Creating Qwen3 model (flash_attention={})...",
+        args.flash_attention
+    );
     let start = Instant::now();
     let target_model = Qwen3ForCausalLM::new(&config, args.flash_attention, vb)?;
     info!("Model created in {:?}", start.elapsed());
@@ -174,7 +180,10 @@ fn main() -> anyhow::Result<()> {
     // Create LLM engine (with or without speculative decoding)
     let mut engine = if args.speculative {
         info!("Speculative decoding enabled");
-        info!("Loading draft model: {} (revision: {})", args.draft_model, args.revision);
+        info!(
+            "Loading draft model: {} (revision: {})",
+            args.draft_model, args.revision
+        );
 
         // Download and load draft model
         let draft_files = download_model(&args.draft_model, &args.revision)?;
@@ -189,8 +198,8 @@ fn main() -> anyhow::Result<()> {
         info!("Draft model loaded");
 
         // Create speculative config
-        let speculative_config = SpeculativeConfig::new(&args.draft_model)
-            .num_tokens(args.num_speculative_tokens);
+        let speculative_config =
+            SpeculativeConfig::new(&args.draft_model).num_tokens(args.num_speculative_tokens);
 
         info!(
             "Speculative config: K={} tokens per step",
@@ -240,7 +249,7 @@ fn main() -> anyhow::Result<()> {
         let finish_str = output
             .finish_reason
             .as_ref()
-            .map(|r| format!("{:?}", r))
+            .map(|r| format!("{r:?}"))
             .unwrap_or_else(|| "-".to_string());
 
         let stats = format!(
@@ -253,7 +262,10 @@ fn main() -> anyhow::Result<()> {
         println!("┌──────────────────────────────────────────────────────────────┐");
         println!("│ {:<60} │", format!("Request ID: {}", output.request_id));
         println!("├──────────────────────────────────────────────────────────────┤");
-        println!("│ {:<60} │", format!("Prompt: {}", truncate_str(&output.prompt, 50)));
+        println!(
+            "│ {:<60} │",
+            format!("Prompt: {}", truncate_str(&output.prompt, 50))
+        );
         println!("├──────────────────────────────────────────────────────────────┤");
         println!("│ {:<60} │", "Output:");
         for line in output.output_text.lines() {
@@ -273,11 +285,14 @@ fn main() -> anyhow::Result<()> {
     println!("{:^64}", "SUMMARY");
     println!("════════════════════════════════════════════════════════════════");
     println!("  Prompts processed:      {}", outputs.len());
-    println!("  Total tokens generated: {}", total_tokens);
-    println!("  Time:                   {:.2?}", elapsed);
-    println!("  Throughput:             {:.2} tokens/sec", tokens_per_sec);
+    println!("  Total tokens generated: {total_tokens}");
+    println!("  Time:                   {elapsed:.2?}");
+    println!("  Throughput:             {tokens_per_sec:.2} tokens/sec");
     if args.speculative {
-        println!("  Mode:                   Speculative (K={})", args.num_speculative_tokens);
+        println!(
+            "  Mode:                   Speculative (K={})",
+            args.num_speculative_tokens
+        );
         println!("  Draft model:            {}", args.draft_model);
     } else {
         println!("  Mode:                   Standard");

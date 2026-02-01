@@ -3,8 +3,8 @@
 use std::collections::HashSet;
 
 use candle_core::{Device, Tensor};
-use nano_vllm::config::SamplingConfig;
 use nano_vllm::Sampler;
+use nano_vllm::config::SamplingConfig;
 
 fn test_device() -> Device {
     Device::Cpu
