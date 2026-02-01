@@ -266,21 +266,3 @@ impl SpeculativeEngine {
         &mut self.draft_model
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Note: Full integration tests require loading actual models.
-    // These are basic structural tests.
-
-    #[test]
-    fn test_config_accessor() {
-        // This test just verifies the config accessor compiles correctly.
-        // Full tests are in speculative_inference_test.rs
-        let config = SpeculativeConfig::new("Qwen/Qwen3-0.6B").num_tokens(4);
-
-        assert_eq!(config.num_speculative_tokens, 4);
-        assert_eq!(config.draft_model_id, "Qwen/Qwen3-0.6B");
-    }
-}
