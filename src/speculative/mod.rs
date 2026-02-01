@@ -29,5 +29,7 @@
 //! - K (num_speculative_tokens): 4 (typical range: 2-8)
 
 pub mod config;
+pub mod sampler;
 
 pub use config::SpeculativeConfig;
+pub use sampler::RejectionSampler;

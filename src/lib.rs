@@ -24,4 +24,4 @@ pub use model::{
     download_model, load_config, load_safetensors, ModelFiles, Qwen3Config, Qwen3ForCausalLM,
 };
 pub use scheduler::{Scheduler, SchedulerOutputs};
-pub use speculative::SpeculativeConfig;
+pub use speculative::{RejectionSampler, SpeculativeConfig};
