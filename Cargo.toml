@@ -16,7 +16,7 @@ candle-transformers = "0.8"
 # Tokenization & model loading
 tokenizers = "0.21"
 hf-hub = "0.3"
-safetensors = "0.5"
+safetensors = "0.7"
 
 # CLI
 clap = { version = "4", features = ["derive"] }
