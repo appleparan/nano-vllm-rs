@@ -45,6 +45,17 @@ This project follows a bottom-up implementation approach, building from low-leve
 - [Configuration](configuration.md) - Engine, Scheduler, Model settings
 - [Errors](errors.md) - Error type definitions
 
+**Implemented:**
+
+| File | Type | Description |
+| ---- | ---- | ----------- |
+| `src/error.rs` | `Error` enum | Error types (Config, Model, Tokenization, etc.) |
+| `src/error.rs` | `Result<T>` | Type alias for `std::result::Result<T, Error>` |
+| `src/config.rs` | `ModelConfig` | Model hyperparameters |
+| `src/config.rs` | `SchedulerConfig` | Scheduler settings |
+| `src/config.rs` | `EngineConfig` | Engine settings |
+| `src/config.rs` | `SamplingConfig` | Sampling parameters |
+
 **Why implement this first?**
 
 These are shared types used by all modules. Error types enable `?` operator for error propagation, and Config types control component behavior. Defining these first ensures consistent error handling and configuration management throughout the project.
@@ -52,6 +63,19 @@ These are shared types used by all modules. Error types enable `?` operator for 
 ### Stage 2: PagedAttention Memory Management
 
 - [PagedAttention](paged_attention.md) - Block, BlockTable, BlockManager
+
+**Implemented:**
+
+| File | Type | Description |
+| ---- | ---- | ----------- |
+| `src/core/block.rs` | `Block` | Physical block with ref_count, prefix_hash |
+| `src/core/block.rs` | `BlockTable` | Logical → physical block mapping |
+| `src/core/block.rs` | `hash_token_block()` | Cumulative hash for prefix caching |
+| `src/core/block.rs` | `compute_num_blocks()` | Calculate required blocks for token count |
+| `src/core/block_manager.rs` | `BlockManager` | Free-list allocator with prefix cache |
+| `src/core/block_manager.rs` | `BlockManager::allocate()` | Allocate blocks for sequence |
+| `src/core/block_manager.rs` | `BlockManager::free()` | Release blocks (ref-count based) |
+| `src/core/block_manager.rs` | `BlockManager::get_cached_block()` | Prefix cache lookup |
 
 **Why this order?**
 
@@ -66,6 +90,21 @@ This abstraction enables Sequence, KVCache, and Scheduler to manage memory effic
 ### Stage 3: Request Tracking & KV Storage
 
 - [Sequence & KV Cache](sequence_kv_cache.md) - Sequence lifecycle, KV tensor storage
+
+**Implemented:**
+
+| File | Type | Description |
+| ---- | ---- | ----------- |
+| `src/core/sequence.rs` | `SequenceStatus` | Waiting, Running, Swapped, Finished |
+| `src/core/sequence.rs` | `FinishReason` | EndOfSequence, MaxTokens, StopSequence, Aborted |
+| `src/core/sequence.rs` | `Sequence` | Request lifecycle (tokens, state, priority) |
+| `src/core/sequence.rs` | `Sequence::append_token()` | Add generated token |
+| `src/core/sequence.rs` | `Sequence::set_status()` | State transition with validation |
+| `src/core/kv_cache.rs` | `KVCacheConfig` | Cache configuration |
+| `src/core/kv_cache.rs` | `LayerKVCache` | Per-layer K/V tensor storage |
+| `src/core/kv_cache.rs` | `KVCache` | Multi-layer cache container |
+| `src/core/kv_cache.rs` | `KVCache::gather_keys()` | Block-based key retrieval |
+| `src/core/kv_cache.rs` | `KVCache::gather_values()` | Block-based value retrieval |
 
 **Why this order?**
 
@@ -87,6 +126,19 @@ The Scheduler needs Sequence state to decide "which request to process", and the
 - [Scheduler](scheduler.md) - Continuous batching, priority scheduling, preemption
 - [Visual Guide](continuous_batching_visual.md) - Illustrated explanation with HuggingFace blog diagrams
 
+**Implemented:**
+
+| File | Type | Description |
+| ---- | ---- | ----------- |
+| `src/scheduler/batch.rs` | `SchedulerOutputs` | Schedule decision (prefill/decode lists) |
+| `src/scheduler/batch.rs` | `Scheduler` | Main scheduler with waiting/running/swapped queues |
+| `src/scheduler/batch.rs` | `Scheduler::add_sequence()` | Add new request to waiting queue |
+| `src/scheduler/batch.rs` | `Scheduler::schedule()` | Main scheduling algorithm |
+| `src/scheduler/batch.rs` | `Scheduler::append_token()` | Add token to running sequence |
+| `src/scheduler/batch.rs` | `Scheduler::mark_prefilled()` | Update prefill progress |
+| `src/scheduler/batch.rs` | `Scheduler::finish_sequence()` | Complete sequence with reason |
+| `src/scheduler/batch.rs` | `Scheduler::has_pending_requests()` | Check for unfinished work |
+
 **Why this order?**
 
 With Sequence tracking requests and KVCache storing tensors, the Scheduler orchestrates them:
@@ -100,13 +152,20 @@ With Sequence tracking requests and KVCache storing tensors, the Scheduler orche
 
 - [Qwen3 Architecture](qwen3_architecture.md) - Complete architecture explanation with diagrams
 
-**Components implemented:**
+**Implemented:**
 
-1. **RmsNorm**: Root Mean Square Normalization (simpler than LayerNorm)
-2. **RotaryEmbedding**: RoPE for position encoding via rotation
-3. **Qwen3Mlp**: SwiGLU feed-forward with gating mechanism
-4. **Qwen3Attention**: Grouped Query Attention with per-head normalization
-5. **Qwen3DecoderLayer**: Pre-norm residual block combining attention and MLP
+| File | Type | Description |
+| ---- | ---- | ----------- |
+| `src/model/norm.rs` | `RmsNorm` | Root Mean Square Normalization |
+| `src/model/norm.rs` | `RmsNorm::forward()` | x / rms(x) * weight |
+| `src/model/rope.rs` | `RotaryEmbedding` | Rotary Position Embeddings |
+| `src/model/rope.rs` | `RotaryEmbedding::apply()` | Apply rotation to Q, K |
+| `src/model/mlp.rs` | `Qwen3Mlp` | SwiGLU feed-forward network |
+| `src/model/mlp.rs` | `Qwen3Mlp::forward()` | down(gate * silu(up)) |
+| `src/model/attention.rs` | `Qwen3Attention` | Grouped Query Attention (GQA) |
+| `src/model/attention.rs` | `Qwen3Attention::forward()` | Q/K/V projection, RoPE, SDPA |
+| `src/model/decoder.rs` | `Qwen3DecoderLayer` | Pre-norm residual block |
+| `src/model/decoder.rs` | `Qwen3DecoderLayer::forward()` | attention + mlp + residuals |
 
 **Why this order?**
 
@@ -120,6 +179,16 @@ The model components build on each other:
 ### Stage 6: PagedAttention
 
 - [PagedAttention](paged_attention.md) - Block-based attention operations
+
+**Implemented:**
+
+| File | Type | Description |
+| ---- | ---- | ----------- |
+| `src/attention/paged.rs` | `prefill_attention()` | Standard SDPA for prompt processing |
+| `src/attention/paged.rs` | `paged_attention()` | Block-based K/V gather + attention |
+| `src/attention/paged.rs` | `write_kv_to_cache()` | Store K/V to block-based cache |
+| `src/attention/paged.rs` | `gather_from_cache()` | Retrieve K/V from blocks |
+| `src/attention/paged.rs` | `create_causal_mask()` | Causal attention mask |
 
 **Why this order?**
 
@@ -138,13 +207,20 @@ We can combine them for efficient inference:
 
 - [Model Loader](model_loader.md) - HuggingFace download, SafeTensors loading, Qwen3 model assembly
 
-**Components implemented:**
+**Implemented:**
 
-1. **Qwen3Config**: Parse HuggingFace config.json
-2. **download_model()**: Download from HuggingFace Hub (hf-hub)
-3. **load_safetensors()**: Memory-mapped SafeTensors loading
-4. **Qwen3Model**: Token embedding + N decoder layers + final norm
-5. **Qwen3ForCausalLM**: Adds language model head for token prediction
+| File | Type | Description |
+| ---- | ---- | ----------- |
+| `src/model/loader.rs` | `Qwen3Config` | HuggingFace config.json parsing |
+| `src/model/loader.rs` | `ModelFiles` | Paths to downloaded model files |
+| `src/model/loader.rs` | `download_model()` | Download from HuggingFace Hub |
+| `src/model/loader.rs` | `load_config()` | Parse config.json to Qwen3Config |
+| `src/model/loader.rs` | `load_safetensors()` | Memory-mapped weight loading |
+| `src/model/qwen3.rs` | `Qwen3Model` | embed_tokens + layers + norm |
+| `src/model/qwen3.rs` | `Qwen3Model::forward()` | Embedding → Layers → Norm |
+| `src/model/qwen3.rs` | `Qwen3ForCausalLM` | Model + lm_head |
+| `src/model/qwen3.rs` | `Qwen3ForCausalLM::forward()` | Returns logits for last position |
+| `src/model/qwen3.rs` | `Qwen3ForCausalLM::forward_all()` | Returns logits for all positions |
 
 **Why this order?**
 
@@ -156,19 +232,25 @@ With all model components implemented in Stage 5-6, we can now:
 
 ### Stage 8: Sampler & LLM Engine
 
-**Components implemented:**
+- [Engine](engine.md) - Sampler and LLMEngine documentation
 
-1. **Sampler**: Token sampling with temperature, top-k, top-p
-   - Greedy decoding (temperature=0)
-   - Stochastic sampling with temperature scaling
-   - Top-k and top-p (nucleus) filtering
-   - Reproducible sampling with seed
+**Implemented:**
 
-2. **LLMEngine**: Orchestrates inference
-   - Combines model, scheduler, sampler, and tokenizer
-   - `add_request()`: Add generation requests
-   - `step()`: Run single inference iteration
-   - `generate()`: Run until completion
+| File | Type | Description |
+| ---- | ---- | ----------- |
+| `src/engine/sampler.rs` | `Sampler` | Token sampling with RNG |
+| `src/engine/sampler.rs` | `Sampler::new()` | Create with SamplingConfig |
+| `src/engine/sampler.rs` | `Sampler::with_seed()` | Create with fixed seed |
+| `src/engine/sampler.rs` | `Sampler::sample()` | Sample token(s) from logits |
+| `src/engine/sampler.rs` | `Sampler::apply_top_k()` | Keep top-k tokens |
+| `src/engine/sampler.rs` | `Sampler::apply_top_p()` | Nucleus sampling filter |
+| `src/engine/llm.rs` | `GenerationRequest` | Request with prompt + config |
+| `src/engine/llm.rs` | `GenerationOutput` | Result with text + tokens |
+| `src/engine/llm.rs` | `LLMEngine` | Main inference orchestrator |
+| `src/engine/llm.rs` | `LLMEngine::add_request()` | Add request (tokenize + schedule) |
+| `src/engine/llm.rs` | `LLMEngine::step()` | Single inference iteration |
+| `src/engine/llm.rs` | `LLMEngine::generate()` | Run until all complete |
+| `src/engine/llm.rs` | `LLMEngine::generate_text()` | Convenience single-prompt method |
 
 **Why this order?**
 
@@ -251,7 +333,8 @@ docs/
 ├── scheduler.md        # Continuous batching scheduler
 ├── continuous_batching_visual.md # Visual guide
 ├── qwen3_architecture.md # Qwen3 model architecture
-└── model_loader.md     # HuggingFace integration, Qwen3 model
+├── model_loader.md     # HuggingFace integration, Qwen3 model
+└── engine.md           # Sampler & LLMEngine
 ```
 
 ## References
