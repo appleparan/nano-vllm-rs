@@ -361,4 +361,4 @@ docs/
 ## References
 
 - [vLLM Paper](https://arxiv.org/abs/2309.06180) - Efficient Memory Management for Large Language Model Serving with PagedAttention
-- [nano-vllm (Python)](https://github.com/huggingface/nano-vllm) - Reference implementation
+- [nano-vllm (Python)](https://github.com/ovshake/nano-vllm) - Reference implementation
