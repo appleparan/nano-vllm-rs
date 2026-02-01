@@ -1,22 +1,22 @@
 [package]
 name = "nano-vllm-rs"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 description = "Rewrite nano-vllm in Rust"
 repository = "https://github.com/appleparan/nano-vllm-rs"
 license = "MIT"
-rust-version = "1.75"
+rust-version = "1.93"
 
 [dependencies]
 # Tensor operations
-candle-core = "0.8"
-candle-nn = "0.8"
-candle-transformers = "0.8"
+candle-core = "0.9"
+candle-nn = "0.9"
+candle-transformers = "0.9"
 
 # Tokenization & model loading
-tokenizers = "0.21"
-hf-hub = "0.3"
-safetensors = "0.5"
+tokenizers = "0.22"
+hf-hub = "0.4"
+safetensors = "0.7"
 
 # CLI
 clap = { version = "4", features = ["derive"] }
@@ -37,7 +37,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8.1"
 
 [[bin]]
 name = "nano-vllm"
