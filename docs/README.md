@@ -8,8 +8,11 @@ This project follows a bottom-up implementation approach, building from low-leve
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│                    Stage 10: Speculative Decoding  ← Next   │
-│                    (Optional Advanced Feature)              │
+│                    Stage 11: Speculative Decoding           │
+│                    (Draft-Verify Decoding)                  │
+├─────────────────────────────────────────────────────────────┤
+│                    Stage 10: Flash Attention       ← Next   │
+│                    (Memory-Efficient Attention)             │
 ├─────────────────────────────────────────────────────────────┤
 │                    Stage 9: CLI                 ✓ Complete  │
 │                    (Command Line Interface)                 │
@@ -277,9 +280,38 @@ With the model, scheduler, and PagedAttention in place, the engine ties everythi
 
 With the LLMEngine complete, the CLI provides a user-friendly interface to interact with the model. It handles model downloading, loading, and text generation from the command line.
 
-### Stage 10: Speculative Decoding (Optional - Not Started)
+### Stage 10: Flash Attention (Not Started)
 
-Optional advanced feature for faster generation using draft-verify approach.
+Memory-efficient attention algorithm that reduces memory from O(n²) to O(n).
+
+**Target Hardware:**
+- CPU: Reference implementation for algorithm understanding
+- GPU: NVIDIA RTX 4090 (CUDA, Tensor Cores, FP16/BF16)
+
+**Key Concepts:**
+
+- **Tiling**: Compute attention in blocks to fit in SRAM
+- **Online Softmax**: Numerically stable incremental softmax computation
+- **IO-Aware**: Minimize HBM ↔ SRAM data transfer
+- **Flash Attention 2**: Better parallelization over batch/heads
+
+**To Implement:**
+
+| File | Type | Description |
+| ---- | ---- | ----------- |
+| `src/attention/flash.rs` | `FlashAttentionConfig` | Block sizes, causal flag, scale |
+| `src/attention/flash.rs` | `flash_attention()` | Dispatcher (auto CPU/CUDA selection) |
+| `src/attention/flash.rs` | `flash_attention_cpu()` | CPU reference implementation |
+| `src/attention/flash_cuda.rs` | `flash_attention_cuda()` | CUDA FFI bindings |
+| `kernels/flash_attn_fwd.cu` | CUDA kernel | Custom Flash Attention kernel |
+
+**Performance Targets:**
+- 2x+ speedup at seq_len=2048
+- 50%+ memory reduction at seq_len=8192
+
+### Stage 11: Speculative Decoding (Optional - Not Started)
+
+Draft-verify approach for faster generation using a smaller draft model.
 
 ## Key Design Decisions
 
