@@ -30,6 +30,7 @@ Each token requires a full forward pass through the model.
 | 70B        | ~500ms            | ~2                   |
 
 For a 100-token response:
+
 - 0.6B model: ~1 second
 - 4B model: ~5 seconds
 - 70B model: ~50 seconds
@@ -294,13 +295,14 @@ Iteration 1:
 
 ### Complexity Analysis
 
-| Operation          | Standard Decoding | Speculative (K=4) |
-| ------------------ | ----------------- | ----------------- |
-| Target forwards    | N                 | N / (1 + avg_accept) |
-| Draft forwards     | 0                 | N × K / (1 + avg_accept) |
-| Tokens per target  | 1                 | 1 + avg_accept    |
+| Operation         | Standard Decoding | Speculative (K=4)        |
+| ----------------- | ----------------- | ------------------------ |
+| Target forwards   | N                 | N / (1 + avg_accept)     |
+| Draft forwards    | 0                 | N × K / (1 + avg_accept) |
+| Tokens per target | 1                 | 1 + avg_accept           |
 
 With avg_accept ≈ 3 for well-matched models:
+
 - Standard: N target forwards for N tokens
 - Speculative: N/4 target forwards + N draft forwards for N tokens
 
@@ -482,11 +484,11 @@ Acceptance Rate:  ████░░░░░░░░░░░░░░░░  
 
 ## Summary
 
-| Concept              | Description                                                   |
-| -------------------- | ------------------------------------------------------------- |
-| **Problem**          | Autoregressive generation is sequential and slow              |
-| **Solution**         | Draft-verify paradigm with smaller model speculation          |
-| **Key Insight**      | Small models agree with large models on most tokens           |
-| **Rejection Sampling**| Mathematically guarantees same distribution as target        |
-| **Speedup**          | 2-3x with well-matched draft model (same vocabulary)          |
-| **Best Use Case**    | Low temperature, predictable text, single batch               |
+| Concept                | Description                                              |
+| ---------------------- | -------------------------------------------------------- |
+| **Problem**            | Autoregressive generation is sequential and slow         |
+| **Solution**           | Draft-verify paradigm with smaller model speculation     |
+| **Key Insight**        | Small models agree with large models on most tokens      |
+| **Rejection Sampling** | Mathematically guarantees same distribution as target    |
+| **Speedup**            | 2-3x with well-matched draft model (same vocabulary)     |
+| **Best Use Case**      | Low temperature, predictable text, single batch          |

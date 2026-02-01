@@ -402,10 +402,10 @@ Speculative Decoding은 작은 draft 모델로 여러 토큰을 빠르게 생성
 
 ### Model Configuration
 
-| Role | Model | Parameters |
-|------|-------|------------|
-| **Target** | Qwen/Qwen3-4B | 4B |
-| **Draft** | Qwen/Qwen3-0.6B | 0.6B |
+| Role       | Model           | Parameters |
+| ---------- | --------------- | ---------- |
+| **Target** | Qwen/Qwen3-4B   | 4B         |
+| **Draft**  | Qwen/Qwen3-0.6B | 0.6B       |
 
 ### Tasks
 

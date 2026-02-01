@@ -331,10 +331,10 @@ Accelerates generation using a smaller draft model for speculation.
 
 **Model Configuration:**
 
-| Role | Model | Parameters |
-|------|-------|------------|
-| Target | Qwen/Qwen3-4B | 4B |
-| Draft | Qwen/Qwen3-0.6B | 0.6B |
+| Role   | Model           | Parameters |
+| ------ | --------------- | ---------- |
+| Target | Qwen/Qwen3-4B   | 4B         |
+| Draft  | Qwen/Qwen3-0.6B | 0.6B       |
 
 **Key Concepts:**
 
