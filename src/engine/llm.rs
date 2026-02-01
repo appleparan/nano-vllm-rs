@@ -335,17 +335,18 @@ impl LLMEngine {
             .get_sequence(seq_id)
             .ok_or(Error::SequenceNotFound(seq_id))?;
 
-        // Get the last token for forward pass
-        let all_tokens = sequence.all_token_ids();
-        let last_token = *all_tokens
-            .last()
-            .ok_or_else(|| Error::Config("Sequence has no tokens".to_string()))?;
+        // Get all tokens for forward pass
+        // Note: Without KV cache integration, we need to pass all tokens
+        // to maintain context. This is inefficient but correct.
+        // Future optimization: integrate KV cache for O(1) decode.
+        let all_tokens = sequence.all_token_ids().to_vec();
+        if all_tokens.is_empty() {
+            return Err(Error::Config("Sequence has no tokens".to_string()));
+        }
 
-        let start_pos = all_tokens.len() - 1;
-
-        // Forward pass for single token
-        let input_ids = Tensor::new(&[[last_token]], &self.device)?;
-        let logits = self.model.forward(&input_ids, start_pos)?;
+        // Forward pass with all tokens, returning logits for last position
+        let input_ids = Tensor::new(all_tokens.as_slice(), &self.device)?.unsqueeze(0)?;
+        let logits = self.model.forward(&input_ids, 0)?;
 
         // Sample next token
         let sampler = self

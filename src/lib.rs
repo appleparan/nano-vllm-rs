@@ -19,4 +19,7 @@ pub mod speculative;
 pub use config::{EngineConfig, ModelConfig, SamplingConfig, SchedulerConfig};
 pub use engine::{GenerationOutput, GenerationRequest, LLMEngine, Sampler};
 pub use error::{Error, Result};
+pub use model::{
+    download_model, load_config, load_safetensors, ModelFiles, Qwen3Config, Qwen3ForCausalLM,
+};
 pub use scheduler::{Scheduler, SchedulerOutputs};
