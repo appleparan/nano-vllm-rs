@@ -11,7 +11,7 @@ This project follows a bottom-up implementation approach, building from low-leve
 │                    Stage 11: Speculative Decoding           │
 │                    (Draft-Verify Decoding)                  │
 ├─────────────────────────────────────────────────────────────┤
-│                    Stage 10: Flash Attention       ← Next   │
+│                    Stage 10: Flash Attention    ✓ Complete  │
 │                    (Memory-Efficient Attention)             │
 ├─────────────────────────────────────────────────────────────┤
 │                    Stage 9: CLI                 ✓ Complete  │
@@ -280,13 +280,23 @@ With the model, scheduler, and PagedAttention in place, the engine ties everythi
 
 With the LLMEngine complete, the CLI provides a user-friendly interface to interact with the model. It handles model downloading, loading, and text generation from the command line.
 
-### Stage 10: Flash Attention (Not Started)
+### Stage 10: Flash Attention
+
+- [Flash Attention](flash_attention.md) - Memory-efficient attention algorithm explained
 
 Memory-efficient attention algorithm that reduces memory from O(n²) to O(n).
 
-**Target Hardware:**
-- CPU: Reference implementation for algorithm understanding
-- GPU: NVIDIA RTX 4090 (CUDA, Tensor Cores, FP16/BF16)
+**Implemented:**
+
+| File | Type | Description |
+| ---- | ---- | ----------- |
+| `src/attention/flash.rs` | `FlashAttentionConfig` | Block sizes, causal flag, scale |
+| `src/attention/flash.rs` | `flash_attention()` | Dispatcher (auto CPU/CUDA selection) |
+| `src/attention/flash.rs` | `flash_attention_cpu()` | CPU reference with online softmax |
+| `kernels/flash_attn_fwd.cu` | CUDA kernel | Custom Flash Attention kernel (FP32/FP16) |
+| `src/model/attention.rs` | `Qwen3Attention` | Integrated flash_attention_forward() |
+| `src/config.rs` | `EngineConfig` | `use_flash_attention` flag |
+| `src/main.rs` | CLI | `--flash-attention` flag |
 
 **Key Concepts:**
 
@@ -295,19 +305,12 @@ Memory-efficient attention algorithm that reduces memory from O(n²) to O(n).
 - **IO-Aware**: Minimize HBM ↔ SRAM data transfer
 - **Flash Attention 2**: Better parallelization over batch/heads
 
-**To Implement:**
+**Why this order?**
 
-| File | Type | Description |
-| ---- | ---- | ----------- |
-| `src/attention/flash.rs` | `FlashAttentionConfig` | Block sizes, causal flag, scale |
-| `src/attention/flash.rs` | `flash_attention()` | Dispatcher (auto CPU/CUDA selection) |
-| `src/attention/flash.rs` | `flash_attention_cpu()` | CPU reference implementation |
-| `src/attention/flash_cuda.rs` | `flash_attention_cuda()` | CUDA FFI bindings |
-| `kernels/flash_attn_fwd.cu` | CUDA kernel | Custom Flash Attention kernel |
-
-**Performance Targets:**
-- 2x+ speedup at seq_len=2048
-- 50%+ memory reduction at seq_len=8192
+With the standard attention working, Flash Attention provides a drop-in replacement that:
+- Uses O(n) memory instead of O(n²) for long sequences
+- Runs faster by reducing HBM access
+- Enables processing of much longer context lengths
 
 ### Stage 11: Speculative Decoding (Optional - Not Started)
 
@@ -387,10 +390,13 @@ docs/
 ├── continuous_batching_visual.md # Visual guide
 ├── qwen3_architecture.md # Qwen3 model architecture
 ├── model_loader.md     # HuggingFace integration, Qwen3 model
-└── engine.md           # Sampler & LLMEngine
+├── engine.md           # Sampler & LLMEngine
+└── flash_attention.md  # Flash Attention algorithm explained
 ```
 
 ## References
 
 - [vLLM Paper](https://arxiv.org/abs/2309.06180) - Efficient Memory Management for Large Language Model Serving with PagedAttention
+- [Flash Attention](https://arxiv.org/abs/2205.14135) - Fast and Memory-Efficient Exact Attention with IO-Awareness
+- [Flash Attention 2](https://arxiv.org/abs/2307.08691) - Faster Attention with Better Parallelism and Work Partitioning
 - [nano-vllm (Python)](https://github.com/ovshake/nano-vllm) - Reference implementation
