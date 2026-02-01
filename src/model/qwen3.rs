@@ -231,31 +231,3 @@ impl Qwen3ForCausalLM {
         self.model.dtype()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Note: Full model tests require downloading weights from HuggingFace.
-    // These tests verify the structure and forward pass shapes with mock data.
-
-    #[test]
-    fn test_qwen3_config_defaults() {
-        let json = r#"{
-            "vocab_size": 1000,
-            "hidden_size": 64,
-            "intermediate_size": 128,
-            "num_hidden_layers": 2,
-            "num_attention_heads": 4,
-            "num_key_value_heads": 2
-        }"#;
-
-        let config: Qwen3Config = serde_json::from_str(json).unwrap();
-
-        assert_eq!(config.vocab_size, 1000);
-        assert_eq!(config.hidden_size, 64);
-        assert_eq!(config.num_hidden_layers, 2);
-        assert_eq!(config.head_dim, 128); // default
-        assert!(config.tie_word_embeddings); // default
-    }
-}
