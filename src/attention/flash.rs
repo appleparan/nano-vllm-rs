@@ -90,12 +90,16 @@ pub fn flash_attention(
 ) -> Result<Tensor> {
     match query.device() {
         Device::Cpu => flash_attention_cpu(query, key, value, config),
-        #[cfg(feature = "cuda")]
-        Device::Cuda(_) => flash_attention_cuda(query, key, value, config),
-        #[cfg(not(feature = "cuda"))]
+        // TODO: Add CUDA dispatch when FFI bindings are ready
+        // The custom kernel is compiled but not yet linked
         Device::Cuda(_) => {
-            // Fallback to CPU if CUDA feature not enabled
-            flash_attention_cpu(query, key, value, config)
+            // For now, move to CPU for computation
+            // This is temporary until FFI bindings are implemented
+            let q_cpu = query.to_device(&Device::Cpu)?;
+            let k_cpu = key.to_device(&Device::Cpu)?;
+            let v_cpu = value.to_device(&Device::Cpu)?;
+            let output = flash_attention_cpu(&q_cpu, &k_cpu, &v_cpu, config)?;
+            output.to_device(query.device())
         }
         _ => flash_attention_cpu(query, key, value, config),
     }
@@ -346,16 +350,8 @@ fn write_block(output: &Tensor, block: &Tensor, start: usize) -> Result<Tensor> 
     }
 }
 
-#[cfg(feature = "cuda")]
-pub fn flash_attention_cuda(
-    _query: &Tensor,
-    _key: &Tensor,
-    _value: &Tensor,
-    _config: &FlashAttentionConfig,
-) -> Result<Tensor> {
-    // TODO: Implement CUDA kernel
-    todo!("CUDA Flash Attention not yet implemented")
-}
+// TODO: Add CUDA FFI bindings when ready
+// The custom kernel is in kernels/flash_attn_fwd.cu
 
 #[cfg(test)]
 mod tests {
