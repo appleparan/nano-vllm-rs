@@ -17,5 +17,6 @@ pub mod scheduler;
 pub mod speculative;
 
 pub use config::{EngineConfig, ModelConfig, SamplingConfig, SchedulerConfig};
+pub use engine::{GenerationOutput, GenerationRequest, LLMEngine, Sampler};
 pub use error::{Error, Result};
 pub use scheduler::{Scheduler, SchedulerOutputs};

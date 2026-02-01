@@ -485,6 +485,11 @@ impl Scheduler {
             || !self.swapped_ids.is_empty()
     }
 
+    /// Check if there are pending requests (waiting or running).
+    pub fn has_pending_requests(&self) -> bool {
+        !self.waiting_queue.is_empty() || !self.running_ids.is_empty()
+    }
+
     /// Get block manager reference.
     pub fn block_manager(&self) -> &BlockManager {
         &self.block_manager

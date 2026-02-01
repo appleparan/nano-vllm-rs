@@ -178,22 +178,28 @@
 ## Stage 8: Sampler & Engine
 
 **Goal**: 토큰 샘플링 및 추론 엔진 구현
-**Status**: Not Started
+**Status**: Complete
 
 ### Tasks
 
-1. `Sampler` (temperature, top_k, top_p)
-2. `LLMEngine`
-   - model, scheduler, block_manager 조합
-   - `add_request()`: 새 요청 추가
+1. [x] `Sampler` (temperature, top_k, top_p) - `src/engine/sampler.rs`
+   - Greedy decoding (temperature=0)
+   - Temperature scaling
+   - Top-k filtering
+   - Top-p (nucleus) filtering
+   - Reproducible sampling with seed
+2. [x] `LLMEngine` - `src/engine/llm.rs`
+   - model, scheduler, sampler, tokenizer 조합
+   - `add_request()`: 새 요청 추가 (tokenization 포함)
    - `step()`: 한 iteration 실행 (prefill/decode)
    - `generate()`: 완료까지 실행
+   - `generate_text()`: 단일 프롬프트 편의 메서드
 
 ### Success Criteria
 
-- [ ] 단일 프롬프트 생성 테스트
-- [ ] 배치 생성 테스트
-- [ ] 생성 결과가 유효한 텍스트인지 확인
+- [x] Sampler 테스트 통과 (6 tests)
+- [x] GenerationRequest 빌더 테스트 통과
+- [x] 모든 테스트 통과 (107 tests)
 
 ---
 

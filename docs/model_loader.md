@@ -39,10 +39,10 @@ Stage 7 implements the model loading pipeline and full Qwen3 transformer model. 
 │  │  │  norm (RmsNorm)                                  │  │  │
 │  │  └──────────────────────────────────────────────────┘  │  │
 │  └────────────────────────────────────────────────────────┘  │
-│                            │                                  │
-│                            ▼                                  │
-│                   lm_head (Linear)                            │
-│             [hidden_size → vocab_size]                        │
+│                            │                                 │
+│                            ▼                                 │
+│                   lm_head (Linear)                           │
+│             [hidden_size → vocab_size]                       │
 └──────────────────────────────────────────────────────────────┘
 ```
 

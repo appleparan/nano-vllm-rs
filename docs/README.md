@@ -8,10 +8,13 @@ This project follows a bottom-up implementation approach, building from low-leve
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│                    Stage 9-10: CLI & Advanced               │
-│                    (Speculative Decoding)                   │
+│                    Stage 10: Speculative Decoding           │
+│                    (Optional Advanced Feature)              │
 ├─────────────────────────────────────────────────────────────┤
-│                    Stage 8: LLM Engine          ← Next      │
+│                    Stage 9: CLI                 ← Next      │
+│                    (Command Line Interface)                 │
+├─────────────────────────────────────────────────────────────┤
+│                    Stage 8: LLM Engine          ✓ Complete  │
 │                    (Orchestration)                          │
 ├─────────────────────────────────────────────────────────────┤
 │                    Stage 7: Model Loader        ✓ Complete  │
@@ -151,9 +154,29 @@ With all model components implemented in Stage 5-6, we can now:
 - Assemble the full Qwen3 transformer model
 - Prepare for inference in Stage 8
 
-### Stage 8-10: Sampler & Engine (Planned)
+### Stage 8: Sampler & LLM Engine
 
-Sampling, inference engine orchestration, and CLI will be implemented next.
+**Components implemented:**
+
+1. **Sampler**: Token sampling with temperature, top-k, top-p
+   - Greedy decoding (temperature=0)
+   - Stochastic sampling with temperature scaling
+   - Top-k and top-p (nucleus) filtering
+   - Reproducible sampling with seed
+
+2. **LLMEngine**: Orchestrates inference
+   - Combines model, scheduler, sampler, and tokenizer
+   - `add_request()`: Add generation requests
+   - `step()`: Run single inference iteration
+   - `generate()`: Run until completion
+
+**Why this order?**
+
+With the model, scheduler, and PagedAttention in place, the engine ties everything together for actual text generation.
+
+### Stage 9-10: CLI & Speculative Decoding (Planned)
+
+CLI and optional speculative decoding will be implemented next.
 
 ## Key Design Decisions
 
@@ -210,6 +233,10 @@ src/
 │   ├── decoder.rs      # Qwen3DecoderLayer
 │   ├── loader.rs       # HuggingFace model download, SafeTensors loading
 │   └── qwen3.rs        # Qwen3Model, Qwen3ForCausalLM
+├── engine/
+│   ├── mod.rs
+│   ├── sampler.rs      # Token sampling (temperature, top_k, top_p)
+│   └── llm.rs          # LLMEngine orchestration
 └── scheduler/
     ├── mod.rs
     └── batch.rs        # Scheduler with continuous batching

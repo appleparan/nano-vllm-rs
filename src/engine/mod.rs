@@ -4,6 +4,8 @@
 //! - LLMEngine for orchestrating inference
 //! - Sampler for token sampling
 
-// TODO: Stage 8 - Engine & Sampler
-// pub mod engine;
-// pub mod sampler;
+pub mod llm;
+pub mod sampler;
+
+pub use llm::{GenerationOutput, GenerationRequest, LLMEngine};
+pub use sampler::Sampler;
