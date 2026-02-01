@@ -8,10 +8,10 @@ This project follows a bottom-up implementation approach, building from low-leve
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│                    Stage 10: Speculative Decoding           │
+│                    Stage 10: Speculative Decoding  ← Next   │
 │                    (Optional Advanced Feature)              │
 ├─────────────────────────────────────────────────────────────┤
-│                    Stage 9: CLI                 ← Next      │
+│                    Stage 9: CLI                 ✓ Complete  │
 │                    (Command Line Interface)                 │
 ├─────────────────────────────────────────────────────────────┤
 │                    Stage 8: LLM Engine          ✓ Complete  │
@@ -23,16 +23,16 @@ This project follows a bottom-up implementation approach, building from low-leve
 │        Stage 5-6: Qwen3 Model & PagedAttention  ✓ Complete  │
 │        (Neural Network Components)                          │
 ├─────────────────────────────────────────────────────────────┤
-│        Stage 4: Scheduler                                   │
+│        Stage 4: Scheduler                       ✓ Complete  │
 │        (Continuous Batching)                                │
 ├─────────────────────────────────────────────────────────────┤
-│        Stage 3: Sequence & KV Cache                         │
+│        Stage 3: Sequence & KV Cache             ✓ Complete  │
 │        (Request Tracking & Tensor Storage)                  │
 ├─────────────────────────────────────────────────────────────┤
-│        Stage 2: Block & BlockManager                        │
+│        Stage 2: Block & BlockManager            ✓ Complete  │
 │        (PagedAttention Memory Management)                   │
 ├─────────────────────────────────────────────────────────────┤
-│        Stage 1: Architecture, Config, Error                 │
+│        Stage 1: Architecture, Config, Error     ✓ Complete  │
 │        (Project Foundation)                                 │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -256,9 +256,30 @@ With all model components implemented in Stage 5-6, we can now:
 
 With the model, scheduler, and PagedAttention in place, the engine ties everything together for actual text generation.
 
-### Stage 9-10: CLI & Speculative Decoding (Planned)
+### Stage 9: CLI
 
-CLI and optional speculative decoding will be implemented next.
+**Implemented:**
+
+| File | Type | Description |
+| ---- | ---- | ----------- |
+| `src/main.rs` | `Args` | CLI arguments with clap |
+| `src/main.rs` | `main()` | Model loading, engine creation, generation loop |
+| `src/main.rs` | `--model` | HuggingFace model ID (required) |
+| `src/main.rs` | `--prompt` | Input prompts (multiple allowed, required) |
+| `src/main.rs` | `--max-tokens` | Maximum tokens to generate |
+| `src/main.rs` | `--temperature` | Sampling temperature |
+| `src/main.rs` | `--top-k` | Top-k sampling |
+| `src/main.rs` | `--top-p` | Top-p (nucleus) sampling |
+| `src/main.rs` | `--priority` | Request priority |
+| `src/main.rs` | `--cuda` | Enable CUDA device |
+
+**Why this order?**
+
+With the LLMEngine complete, the CLI provides a user-friendly interface to interact with the model. It handles model downloading, loading, and text generation from the command line.
+
+### Stage 10: Speculative Decoding (Optional - Not Started)
+
+Optional advanced feature for faster generation using draft-verify approach.
 
 ## Key Design Decisions
 

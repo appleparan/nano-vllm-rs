@@ -206,21 +206,30 @@
 ## Stage 9: CLI
 
 **Goal**: 커맨드라인 인터페이스 구현
-**Status**: Not Started
+**Status**: Complete
 
 ### Tasks
 
-1. Clap 기반 CLI 구조
-   - `--model`: 모델 경로
-   - `--prompt`: 입력 프롬프트 (여러개 가능)
-   - `--max-tokens`: 최대 생성 토큰 수
-   - `--priority`: 요청 우선순위
-2. 실행 결과 출력
+1. [x] Clap 기반 CLI 구조 (`src/main.rs`)
+   - `--model` / `-m`: HuggingFace 모델 ID (required)
+   - `--prompt` / `-p`: 입력 프롬프트 (여러개 가능, required)
+   - `--max-tokens`: 최대 생성 토큰 수 (default: 256)
+   - `--temperature` / `-t`: 샘플링 온도 (default: 1.0)
+   - `--top-k`: Top-k 샘플링 (default: 0 = disabled)
+   - `--top-p`: Top-p (nucleus) 샘플링 (default: 1.0 = disabled)
+   - `--priority`: 요청 우선순위 (default: 0)
+   - `--revision`: HuggingFace revision (default: "main")
+   - `--cuda`: CUDA 사용 여부
+   - `--block-size`: PagedAttention 블록 크기 (default: 16)
+   - `--num-blocks`: KV cache 블록 수 (default: 512)
+2. [x] HuggingFace 모델 다운로드 및 로딩
+3. [x] 실행 결과 출력 (pretty formatting, summary)
+4. [x] 여러 프롬프트 동시 처리
 
 ### Success Criteria
 
-- [ ] CLI로 텍스트 생성 성공
-- [ ] 여러 프롬프트 동시 처리 성공
+- [x] CLI로 텍스트 생성 성공 (Qwen/Qwen3-0.6B 테스트 완료)
+- [x] 여러 프롬프트 동시 처리 성공
 
 ---
 

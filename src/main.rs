@@ -89,9 +89,14 @@ fn main() -> anyhow::Result<()> {
 
     let args = Args::parse();
 
+    // Box width: 60 characters inside (62 total with borders)
+    let version = env!("CARGO_PKG_VERSION");
+    let title = format!("nano-vllm v{version}");
+    let subtitle = "A minimalistic LLM inference engine in Rust";
+
     println!("╔════════════════════════════════════════════════════════════╗");
-    println!("║            nano-vllm v{}                            ║", env!("CARGO_PKG_VERSION"));
-    println!("║      A minimalistic LLM inference engine in Rust          ║");
+    println!("║{:^60}║", title);
+    println!("║{:^60}║", subtitle);
     println!("╚════════════════════════════════════════════════════════════╝");
     println!();
 
@@ -169,34 +174,42 @@ fn main() -> anyhow::Result<()> {
 
     // Generate
     println!();
-    println!("═══════════════════════════════════════════════════════════════");
-    println!("                        GENERATION                             ");
-    println!("═══════════════════════════════════════════════════════════════");
+    println!("════════════════════════════════════════════════════════════════");
+    println!("{:^64}", "GENERATION");
+    println!("════════════════════════════════════════════════════════════════");
     println!();
 
     let start = Instant::now();
     let outputs = engine.generate()?;
     let elapsed = start.elapsed();
 
-    // Print outputs
+    // Print outputs (box width: 62 inner chars, 64 total with borders)
     for output in &outputs {
-        println!("┌─────────────────────────────────────────────────────────────┐");
-        println!("│ Request ID: {:3}                                            │", output.request_id);
-        println!("├─────────────────────────────────────────────────────────────┤");
-        println!("│ Prompt: {}", truncate_str(&output.prompt, 50));
-        println!("├─────────────────────────────────────────────────────────────┤");
-        println!("│ Output:");
-        for line in output.output_text.lines() {
-            println!("│   {}", line);
-        }
-        println!("├─────────────────────────────────────────────────────────────┤");
-        println!(
-            "│ Tokens: {} total, {} generated  Finish: {:?}",
+        let finish_str = output
+            .finish_reason
+            .as_ref()
+            .map(|r| format!("{:?}", r))
+            .unwrap_or_else(|| "-".to_string());
+
+        let stats = format!(
+            "Tokens: {} total, {} generated | Finish: {}",
             output.total_tokens,
             output.output_tokens.len(),
-            output.finish_reason.as_ref().map(|r| format!("{:?}", r)).unwrap_or_default()
+            finish_str
         );
-        println!("└─────────────────────────────────────────────────────────────┘");
+
+        println!("┌──────────────────────────────────────────────────────────────┐");
+        println!("│ {:<60} │", format!("Request ID: {}", output.request_id));
+        println!("├──────────────────────────────────────────────────────────────┤");
+        println!("│ {:<60} │", format!("Prompt: {}", truncate_str(&output.prompt, 50)));
+        println!("├──────────────────────────────────────────────────────────────┤");
+        println!("│ {:<60} │", "Output:");
+        for line in output.output_text.lines() {
+            println!("│   {:<57} │", truncate_str(line, 55));
+        }
+        println!("├──────────────────────────────────────────────────────────────┤");
+        println!("│ {:<60} │", truncate_str(&stats, 60));
+        println!("└──────────────────────────────────────────────────────────────┘");
         println!();
     }
 
@@ -204,14 +217,14 @@ fn main() -> anyhow::Result<()> {
     let total_tokens: usize = outputs.iter().map(|o| o.output_tokens.len()).sum();
     let tokens_per_sec = total_tokens as f64 / elapsed.as_secs_f64();
 
-    println!("═══════════════════════════════════════════════════════════════");
-    println!("                        SUMMARY                                ");
-    println!("═══════════════════════════════════════════════════════════════");
-    println!("  Prompts processed: {}", outputs.len());
+    println!("════════════════════════════════════════════════════════════════");
+    println!("{:^64}", "SUMMARY");
+    println!("════════════════════════════════════════════════════════════════");
+    println!("  Prompts processed:     {}", outputs.len());
     println!("  Total tokens generated: {}", total_tokens);
-    println!("  Time: {:.2?}", elapsed);
-    println!("  Throughput: {:.2} tokens/sec", tokens_per_sec);
-    println!("═══════════════════════════════════════════════════════════════");
+    println!("  Time:                  {:.2?}", elapsed);
+    println!("  Throughput:            {:.2} tokens/sec", tokens_per_sec);
+    println!("════════════════════════════════════════════════════════════════");
 
     Ok(())
 }
