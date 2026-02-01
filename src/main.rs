@@ -69,6 +69,10 @@ struct Args {
     #[arg(long)]
     cuda: bool,
 
+    /// Use Flash Attention for memory efficiency
+    #[arg(long)]
+    flash_attention: bool,
+
     /// Block size for PagedAttention
     #[arg(long, default_value = "16")]
     block_size: usize,
@@ -133,9 +137,9 @@ fn main() -> anyhow::Result<()> {
     info!("Weights loaded in {:?}", start.elapsed());
 
     // Create model
-    info!("Creating Qwen3 model...");
+    info!("Creating Qwen3 model (flash_attention={})...", args.flash_attention);
     let start = Instant::now();
-    let model = Qwen3ForCausalLM::new(&config, vb)?;
+    let model = Qwen3ForCausalLM::new(&config, args.flash_attention, vb)?;
     info!("Model created in {:?}", start.elapsed());
 
     // Load tokenizer
@@ -150,6 +154,7 @@ fn main() -> anyhow::Result<()> {
         block_size: args.block_size,
         num_blocks: args.num_blocks,
         use_paged_attention: true,
+        use_flash_attention: args.flash_attention,
         enable_prefix_caching: true,
         enable_preemption: false,
     };

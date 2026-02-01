@@ -15,6 +15,9 @@ pub struct EngineConfig {
     pub num_blocks: usize,
     /// Enable PagedAttention.
     pub use_paged_attention: bool,
+    /// Enable Flash Attention for memory-efficient attention.
+    /// When enabled, uses O(n) memory instead of O(n²).
+    pub use_flash_attention: bool,
     /// Enable prefix caching.
     pub enable_prefix_caching: bool,
     /// Enable priority-based preemption.
@@ -29,6 +32,7 @@ impl Default for EngineConfig {
             block_size: 16,
             num_blocks: 1024,
             use_paged_attention: true,
+            use_flash_attention: false, // Disabled by default until FFI bindings ready
             enable_prefix_caching: true,
             enable_preemption: false,
         }

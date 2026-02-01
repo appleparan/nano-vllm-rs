@@ -18,6 +18,7 @@ fn test_attention_creation() {
         1024,    // max_seq_len
         10000.0, // rope_theta
         1e-6,    // rms_norm_eps
+        false,   // use_flash_attention
         DType::F32,
         &device,
     )
@@ -46,6 +47,7 @@ fn test_attention_forward_shape() {
         1024,
         10000.0,
         1e-6,
+        false, // use_flash_attention
         DType::F32,
         &device,
     )
@@ -74,6 +76,7 @@ fn test_attention_with_kv_cache() {
         1024,
         10000.0,
         1e-6,
+        false, // use_flash_attention
         DType::F32,
         &device,
     )
@@ -109,7 +112,7 @@ fn test_attention_with_kv_cache() {
 fn test_repeat_kv() {
     let device = test_device();
     let attn =
-        Qwen3Attention::new_random(64, 4, 2, 16, 1024, 10000.0, 1e-6, DType::F32, &device)
+        Qwen3Attention::new_random(64, 4, 2, 16, 1024, 10000.0, 1e-6, false, DType::F32, &device)
             .unwrap();
 
     // Test via forward pass - GQA expansion happens internally
@@ -124,7 +127,7 @@ fn test_repeat_kv() {
 fn test_causal_mask_prefill() {
     let device = test_device();
     let attn =
-        Qwen3Attention::new_random(64, 4, 2, 16, 1024, 10000.0, 1e-6, DType::F32, &device)
+        Qwen3Attention::new_random(64, 4, 2, 16, 1024, 10000.0, 1e-6, false, DType::F32, &device)
             .unwrap();
 
     // Test via forward pass - causal masking is applied internally
@@ -144,7 +147,7 @@ fn test_causal_mask_decode() {
     let head_dim = 16;
 
     let attn =
-        Qwen3Attention::new_random(hidden_size, 4, num_kv_heads, head_dim, 1024, 10000.0, 1e-6, DType::F32, &device)
+        Qwen3Attention::new_random(hidden_size, 4, num_kv_heads, head_dim, 1024, 10000.0, 1e-6, false, DType::F32, &device)
             .unwrap();
 
     // Prefill first
@@ -179,6 +182,7 @@ fn test_attention_with_qwen3_config() {
         4096,
         1000000.0, // Qwen3 uses 1M
         1e-6,
+        false, // use_flash_attention
         DType::F32,
         &device,
     )
@@ -188,4 +192,36 @@ fn test_attention_with_qwen3_config() {
     let output = attn.forward(&x, 0, None, None).unwrap();
 
     assert_eq!(output.dims(), &[1, 4, hidden_size]);
+}
+
+#[test]
+fn test_attention_with_flash_attention() {
+    // Test with Flash Attention enabled
+    let device = test_device();
+    let hidden_size = 64;
+    let num_heads = 4;
+    let num_kv_heads = 2;
+    let head_dim = 16;
+    let batch_size = 2;
+    let seq_len = 8;
+
+    let attn = Qwen3Attention::new_random(
+        hidden_size,
+        num_heads,
+        num_kv_heads,
+        head_dim,
+        1024,
+        10000.0,
+        1e-6,
+        true, // use_flash_attention
+        DType::F32,
+        &device,
+    )
+    .unwrap();
+
+    let x = Tensor::randn(0.0f32, 0.1, (batch_size, seq_len, hidden_size), &device).unwrap();
+
+    let output = attn.forward(&x, 0, None, None).unwrap();
+
+    assert_eq!(output.dims(), &[batch_size, seq_len, hidden_size]);
 }

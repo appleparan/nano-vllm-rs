@@ -55,6 +55,9 @@ pub struct Qwen3Model {
     device: Device,
     /// Data type.
     dtype: DType,
+    /// Whether Flash Attention is enabled.
+    #[allow(dead_code)]
+    use_flash_attention: bool,
 }
 
 impl Qwen3Model {
@@ -63,8 +66,9 @@ impl Qwen3Model {
     /// # Arguments
     ///
     /// * `config` - Model configuration
+    /// * `use_flash_attention` - Whether to use Flash Attention
     /// * `vb` - VarBuilder for loading weights
-    pub fn new(config: &Qwen3Config, vb: VarBuilder) -> Result<Self> {
+    pub fn new(config: &Qwen3Config, use_flash_attention: bool, vb: VarBuilder) -> Result<Self> {
         let embed_tokens = embedding(
             config.vocab_size,
             config.hidden_size,
@@ -82,6 +86,7 @@ impl Qwen3Model {
                 config.max_position_embeddings,
                 config.rope_theta,
                 config.rms_norm_eps,
+                use_flash_attention,
                 vb.pp(format!("model.layers.{i}")),
             )?;
             layers.push(layer);
@@ -96,6 +101,7 @@ impl Qwen3Model {
             norm,
             device: vb.device().clone(),
             dtype: vb.dtype(),
+            use_flash_attention,
         })
     }
 
@@ -160,9 +166,10 @@ impl Qwen3ForCausalLM {
     /// # Arguments
     ///
     /// * `config` - Model configuration
+    /// * `use_flash_attention` - Whether to use Flash Attention
     /// * `vb` - VarBuilder for loading weights
-    pub fn new(config: &Qwen3Config, vb: VarBuilder) -> Result<Self> {
-        let model = Qwen3Model::new(config, vb.clone())?;
+    pub fn new(config: &Qwen3Config, use_flash_attention: bool, vb: VarBuilder) -> Result<Self> {
+        let model = Qwen3Model::new(config, use_flash_attention, vb.clone())?;
 
         let lm_head = if config.tie_word_embeddings {
             // Weight tying: lm_head uses embedding weights transposed

@@ -4,12 +4,14 @@
 //! - Per-head RMSNorm on Q and K (Qwen3 specific)
 //! - Rotary Position Embeddings (RoPE)
 //! - KV cache support for incremental decoding
+//! - Optional Flash Attention for memory efficiency
 
 use candle_core::{DType, Device, Module, Result, Tensor, D};
 use candle_nn::{linear_no_bias, Linear, VarBuilder};
 
 use super::norm::RmsNorm;
 use super::rope::RotaryEmbedding;
+use crate::attention::{flash_attention, FlashAttentionConfig};
 
 /// Qwen3 Attention with Grouped Query Attention (GQA).
 ///
@@ -17,6 +19,7 @@ use super::rope::RotaryEmbedding;
 /// - GQA: Multiple query heads share each KV head pair
 /// - Per-head normalization: RMSNorm applied to Q and K per head
 /// - RoPE: Position encoding via rotation
+/// - Optional Flash Attention: Memory-efficient O(n) attention
 #[derive(Debug, Clone)]
 pub struct Qwen3Attention {
     /// Query projection [hidden_size] -> [num_heads * head_dim].
@@ -44,6 +47,8 @@ pub struct Qwen3Attention {
     hidden_size: usize,
     /// Scaling factor for attention scores.
     scale: f64,
+    /// Whether to use Flash Attention.
+    use_flash_attention: bool,
 }
 
 impl Qwen3Attention {
@@ -58,6 +63,7 @@ impl Qwen3Attention {
     /// * `max_seq_len` - Maximum sequence length for RoPE
     /// * `rope_theta` - RoPE frequency base
     /// * `rms_norm_eps` - Epsilon for RMSNorm
+    /// * `use_flash_attention` - Whether to use Flash Attention
     /// * `vb` - VarBuilder for loading weights
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -68,6 +74,7 @@ impl Qwen3Attention {
         max_seq_len: usize,
         rope_theta: f64,
         rms_norm_eps: f64,
+        use_flash_attention: bool,
         vb: VarBuilder,
     ) -> Result<Self> {
         let q_proj = linear_no_bias(hidden_size, num_heads * head_dim, vb.pp("q_proj"))?;
@@ -99,6 +106,7 @@ impl Qwen3Attention {
             head_dim,
             hidden_size,
             scale,
+            use_flash_attention,
         })
     }
 
@@ -112,6 +120,7 @@ impl Qwen3Attention {
         max_seq_len: usize,
         rope_theta: f64,
         rms_norm_eps: f64,
+        use_flash_attention: bool,
         dtype: DType,
         device: &Device,
     ) -> Result<Self> {
@@ -173,6 +182,7 @@ impl Qwen3Attention {
             head_dim,
             hidden_size,
             scale,
+            use_flash_attention,
         })
     }
 
@@ -245,20 +255,71 @@ impl Qwen3Attention {
 
         let kv_seq_len = k.dims()[1];
 
-        // 6. Expand K, V for GQA
-        let k = self.repeat_kv(&k)?; // [batch, kv_seq_len, num_heads, head_dim]
-        let v = self.repeat_kv(&v)?;
+        // Choose between Flash Attention and standard SDPA
+        let attn_output = if self.use_flash_attention {
+            // Use Flash Attention (memory-efficient O(n) attention)
+            self.flash_attention_forward(&q, &k, &v)?
+        } else {
+            // Standard scaled dot-product attention
+            self.standard_attention_forward(&q, &k, &v, seq_len, kv_seq_len, start_pos, attention_mask)?
+        };
 
-        // 7. Transpose for attention: [batch, num_heads, seq_len, head_dim]
+        // Output projection
+        self.o_proj.forward(&attn_output)
+    }
+
+    /// Flash Attention forward pass.
+    ///
+    /// Uses the memory-efficient Flash Attention algorithm with O(n) memory.
+    fn flash_attention_forward(
+        &self,
+        q: &Tensor,
+        k: &Tensor,
+        v: &Tensor,
+    ) -> Result<Tensor> {
+        let (batch_size, seq_len, _, _) = q.dims4()?;
+
+        // Flash Attention config with causal masking
+        let config = FlashAttentionConfig::new(self.head_dim, true);
+
+        // Flash Attention expects [batch, seq_len, num_heads, head_dim]
+        // and handles GQA internally
+        let attn_output = flash_attention(q, k, v, &config)?;
+
+        // Reshape to [batch, seq_len, num_heads * head_dim]
+        attn_output.reshape((batch_size, seq_len, self.num_heads * self.head_dim))
+    }
+
+    /// Standard scaled dot-product attention forward pass.
+    ///
+    /// Uses O(n²) memory for the full attention matrix.
+    #[allow(clippy::too_many_arguments)]
+    fn standard_attention_forward(
+        &self,
+        q: &Tensor,
+        k: &Tensor,
+        v: &Tensor,
+        seq_len: usize,
+        kv_seq_len: usize,
+        start_pos: usize,
+        attention_mask: Option<&Tensor>,
+    ) -> Result<Tensor> {
+        let (batch_size, _, _, _) = q.dims4()?;
+
+        // Expand K, V for GQA
+        let k = self.repeat_kv(k)?; // [batch, kv_seq_len, num_heads, head_dim]
+        let v = self.repeat_kv(v)?;
+
+        // Transpose for attention: [batch, num_heads, seq_len, head_dim]
         let q = q.transpose(1, 2)?.contiguous()?;
         let k = k.transpose(1, 2)?.contiguous()?;
         let v = v.transpose(1, 2)?.contiguous()?;
 
-        // 8. Compute attention scores: Q @ K^T / sqrt(d)
+        // Compute attention scores: Q @ K^T / sqrt(d)
         let attn_weights = (q.matmul(&k.transpose(D::Minus2, D::Minus1)?)? * self.scale)?;
         // attn_weights: [batch, num_heads, seq_len, kv_seq_len]
 
-        // 9. Apply causal mask
+        // Apply causal mask
         let attn_weights = match attention_mask {
             Some(mask) => attn_weights.broadcast_add(mask)?,
             None => {
@@ -268,21 +329,17 @@ impl Qwen3Attention {
             }
         };
 
-        // 10. Softmax
+        // Softmax
         let attn_weights = candle_nn::ops::softmax_last_dim(&attn_weights)?;
 
-        // 11. Attention @ V
+        // Attention @ V
         let attn_output = attn_weights.matmul(&v)?;
         // attn_output: [batch, num_heads, seq_len, head_dim]
 
-        // 12. Transpose back and reshape
+        // Transpose back and reshape
         let attn_output = attn_output.transpose(1, 2)?.contiguous()?;
         // [batch, seq_len, num_heads, head_dim]
-        let attn_output =
-            attn_output.reshape((batch_size, seq_len, self.num_heads * self.head_dim))?;
-
-        // 13. Output projection
-        self.o_proj.forward(&attn_output)
+        attn_output.reshape((batch_size, seq_len, self.num_heads * self.head_dim))
     }
 
     /// Applies RMSNorm per head.

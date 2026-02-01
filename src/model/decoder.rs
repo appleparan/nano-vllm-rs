@@ -43,6 +43,7 @@ impl Qwen3DecoderLayer {
     /// * `max_seq_len` - Maximum sequence length
     /// * `rope_theta` - RoPE frequency base
     /// * `rms_norm_eps` - Epsilon for RMSNorm
+    /// * `use_flash_attention` - Whether to use Flash Attention
     /// * `vb` - VarBuilder for loading weights
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -54,6 +55,7 @@ impl Qwen3DecoderLayer {
         max_seq_len: usize,
         rope_theta: f64,
         rms_norm_eps: f64,
+        use_flash_attention: bool,
         vb: VarBuilder,
     ) -> Result<Self> {
         let input_layernorm_weight = vb.get((hidden_size,), "input_layernorm.weight")?;
@@ -67,6 +69,7 @@ impl Qwen3DecoderLayer {
             max_seq_len,
             rope_theta,
             rms_norm_eps,
+            use_flash_attention,
             vb.pp("self_attn"),
         )?;
 
@@ -95,6 +98,7 @@ impl Qwen3DecoderLayer {
         max_seq_len: usize,
         rope_theta: f64,
         rms_norm_eps: f64,
+        use_flash_attention: bool,
         dtype: DType,
         device: &Device,
     ) -> Result<Self> {
@@ -108,6 +112,7 @@ impl Qwen3DecoderLayer {
             max_seq_len,
             rope_theta,
             rms_norm_eps,
+            use_flash_attention,
             dtype,
             device,
         )?;

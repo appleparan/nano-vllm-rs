@@ -19,6 +19,7 @@ fn test_decoder_layer_creation() {
         1024,    // max_seq_len
         10000.0, // rope_theta
         1e-6,    // rms_norm_eps
+        false,   // use_flash_attention
         DType::F32,
         &device,
     )
@@ -46,6 +47,7 @@ fn test_decoder_layer_forward_shape() {
         1024,
         10000.0,
         1e-6,
+        false, // use_flash_attention
         DType::F32,
         &device,
     )
@@ -75,6 +77,7 @@ fn test_decoder_layer_with_kv_cache() {
         1024,
         10000.0,
         1e-6,
+        false, // use_flash_attention
         DType::F32,
         &device,
     )
@@ -116,6 +119,7 @@ fn test_decoder_layer_residual() {
         1024,
         10000.0,
         1e-6,
+        false, // use_flash_attention
         DType::F32,
         &device,
     )
@@ -157,6 +161,7 @@ fn test_decoder_layer_with_qwen3_config() {
         4096,
         1000000.0, // Qwen3 uses 1M
         1e-6,
+        false, // use_flash_attention
         DType::F32,
         &device,
     )

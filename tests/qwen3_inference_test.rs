@@ -34,8 +34,8 @@ fn create_engine() -> anyhow::Result<LLMEngine> {
     // Load weights
     let vb = load_safetensors(&model_files.weights, DType::F32, &device)?;
 
-    // Create model
-    let model = Qwen3ForCausalLM::new(&config, vb)?;
+    // Create model (use_flash_attention = false for CPU testing)
+    let model = Qwen3ForCausalLM::new(&config, false, vb)?;
 
     // Load tokenizer
     let tokenizer = tokenizers::Tokenizer::from_file(&model_files.tokenizer)
@@ -48,6 +48,7 @@ fn create_engine() -> anyhow::Result<LLMEngine> {
         block_size: 16,
         num_blocks: 256,
         use_paged_attention: true,
+        use_flash_attention: false,
         enable_prefix_caching: false,
         enable_preemption: false,
     };
@@ -88,7 +89,7 @@ fn test_model_download_and_load() {
         load_safetensors(&model_files.weights, DType::F32, &device).expect("Failed to load weights");
 
     // Create model
-    let model = Qwen3ForCausalLM::new(&config, vb).expect("Failed to create model");
+    let model = Qwen3ForCausalLM::new(&config, false, vb).expect("Failed to create model");
 
     // Verify model properties
     assert_eq!(model.model().num_layers(), 28);
