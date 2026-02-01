@@ -50,6 +50,7 @@ use crate::core::sequence::{FinishReason, Sequence, SequenceId};
 use crate::error::{Error, Result};
 use crate::model::{Qwen3Config, Qwen3ForCausalLM};
 use crate::scheduler::Scheduler;
+use crate::speculative::{SpeculativeConfig, SpeculativeEngine};
 use crate::SchedulerConfig;
 
 /// Output from a generation request.
@@ -127,9 +128,13 @@ impl GenerationRequest {
 /// LLM Inference Engine.
 ///
 /// Orchestrates model, scheduler, and sampler for text generation.
+/// Optionally supports speculative decoding for faster generation.
+///
+/// When speculative decoding is enabled, the engine uses a small draft model
+/// to generate tokens speculatively, then verifies with a larger target model.
 pub struct LLMEngine {
-    /// The language model.
-    model: Qwen3ForCausalLM,
+    /// The language model (None when using speculative decoding).
+    model: Option<Qwen3ForCausalLM>,
     /// Model configuration.
     model_config: Qwen3Config,
     /// Request scheduler.
@@ -150,6 +155,9 @@ pub struct LLMEngine {
     dtype: DType,
     /// End-of-sequence token ID.
     eos_token_id: u32,
+    /// Optional speculative decoding engine.
+    /// When Some, the engine uses speculative decoding for generation.
+    speculative_engine: Option<SpeculativeEngine>,
 }
 
 impl LLMEngine {
@@ -194,7 +202,7 @@ impl LLMEngine {
             .unwrap_or(151643); // Qwen3 default EOS
 
         Ok(Self {
-            model,
+            model: Some(model),
             model_config,
             scheduler,
             tokenizer,
@@ -205,6 +213,98 @@ impl LLMEngine {
             device,
             dtype,
             eos_token_id,
+            speculative_engine: None,
+        })
+    }
+
+    /// Create a new LLMEngine with speculative decoding enabled.
+    ///
+    /// Uses separate target and draft models for speculative decoding.
+    /// The target model (larger) is used for verification, while the
+    /// draft model (smaller) generates speculative tokens.
+    ///
+    /// # Arguments
+    ///
+    /// * `target_model` - Large target model for verification (e.g., Qwen3-4B)
+    /// * `draft_model` - Small draft model for speculation (e.g., Qwen3-0.6B)
+    /// * `model_config` - Target model configuration
+    /// * `tokenizer` - Tokenizer for text encoding/decoding
+    /// * `engine_config` - Engine configuration
+    /// * `speculative_config` - Speculative decoding configuration
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// // Load target model (larger)
+    /// let target_model = Qwen3ForCausalLM::new(&target_config, false, target_vb)?;
+    /// // Load draft model (smaller)
+    /// let draft_model = Qwen3ForCausalLM::new(&draft_config, false, draft_vb)?;
+    ///
+    /// let engine = LLMEngine::new_with_speculative(
+    ///     target_model,
+    ///     draft_model,
+    ///     target_config,
+    ///     tokenizer,
+    ///     engine_config,
+    ///     SpeculativeConfig::default(),
+    /// )?;
+    /// ```
+    pub fn new_with_speculative(
+        target_model: Qwen3ForCausalLM,
+        draft_model: Qwen3ForCausalLM,
+        model_config: Qwen3Config,
+        tokenizer: Tokenizer,
+        engine_config: EngineConfig,
+        speculative_config: SpeculativeConfig,
+    ) -> Result<Self> {
+        let device = target_model.device().clone();
+        let dtype = target_model.dtype();
+
+        // Create scheduler config from engine config
+        let scheduler_config = SchedulerConfig {
+            max_num_seqs: engine_config.max_num_seqs,
+            max_prefill_tokens: engine_config.max_prefill_tokens,
+            enable_chunked_prefill: true,
+            chunk_size: 512,
+            enable_priority: true,
+            enable_preemption: engine_config.enable_preemption,
+        };
+
+        let scheduler = Scheduler::new(
+            scheduler_config,
+            engine_config.block_size,
+            engine_config.num_blocks,
+        );
+
+        // Get EOS token ID from tokenizer
+        let eos_token_id = tokenizer
+            .token_to_id("<|endoftext|>")
+            .or_else(|| tokenizer.token_to_id("</s>"))
+            .or_else(|| tokenizer.token_to_id("<|im_end|>"))
+            .unwrap_or(151643); // Qwen3 default EOS
+
+        // Create speculative engine with both models
+        let speculative_engine = SpeculativeEngine::new(
+            target_model,
+            draft_model,
+            speculative_config,
+        );
+
+        Ok(Self {
+            // In speculative mode, model is None
+            // All model access goes through speculative_engine
+            model: None,
+            model_config,
+            scheduler,
+            tokenizer,
+            sampling_configs: HashMap::new(),
+            samplers: HashMap::new(),
+            prompts: HashMap::new(),
+            next_request_id: 1,
+            device,
+            dtype,
+            eos_token_id,
+            speculative_engine: Some(speculative_engine),
         })
     }
 
@@ -282,29 +382,34 @@ impl LLMEngine {
         seq_id: SequenceId,
         scheduler_outputs: &crate::scheduler::SchedulerOutputs,
     ) -> Result<()> {
-        let sequence = self
-            .scheduler
-            .get_sequence(seq_id)
-            .ok_or(Error::SequenceNotFound(seq_id))?;
+        // Extract all needed data from sequence first to avoid borrow issues
+        let (start, end, tokens, prompt_len) = {
+            let sequence = self
+                .scheduler
+                .get_sequence(seq_id)
+                .ok_or(Error::SequenceNotFound(seq_id))?;
 
-        // Get tokens to prefill
-        let num_prefilled = sequence.num_prefilled_tokens();
-        let chunk_size = scheduler_outputs
-            .prefill_chunk_sizes
-            .get(&seq_id)
-            .copied()
-            .unwrap_or(sequence.prompt_len() - num_prefilled);
+            let num_prefilled = sequence.num_prefilled_tokens();
+            let chunk_size = scheduler_outputs
+                .prefill_chunk_sizes
+                .get(&seq_id)
+                .copied()
+                .unwrap_or(sequence.prompt_len() - num_prefilled);
 
-        let start = num_prefilled;
-        let end = (start + chunk_size).min(sequence.prompt_len());
-        let tokens: Vec<u32> = sequence.all_token_ids()[start..end].to_vec();
+            let start = num_prefilled;
+            let end = (start + chunk_size).min(sequence.prompt_len());
+            let tokens: Vec<u32> = sequence.all_token_ids()[start..end].to_vec();
+            let prompt_len = sequence.prompt_len();
 
-        // Forward pass
+            (start, end, tokens, prompt_len)
+        };
+
+        // Forward pass - use model or speculative_engine's target model
         let input_ids = Tensor::new(tokens.as_slice(), &self.device)?.unsqueeze(0)?;
-        let logits = self.model.forward(&input_ids, start)?;
+        let logits = self.forward_prefill(&input_ids, start)?;
 
         // If prefill is complete, sample first token
-        if end == sequence.prompt_len() {
+        if end == prompt_len {
             // Get sampler for this sequence
             let sampler = self
                 .samplers
@@ -328,8 +433,31 @@ impl LLMEngine {
         Ok(())
     }
 
+    /// Forward pass for prefill phase.
+    /// Uses the appropriate model depending on whether speculative decoding is enabled.
+    fn forward_prefill(&mut self, input_ids: &Tensor, start_pos: usize) -> Result<Tensor> {
+        if let Some(ref mut spec_engine) = self.speculative_engine {
+            // Use speculative engine's target model for prefill
+            Ok(spec_engine.target_model_mut().forward(input_ids, start_pos)?)
+        } else if let Some(ref mut model) = self.model {
+            Ok(model.forward(input_ids, start_pos)?)
+        } else {
+            Err(Error::Config("No model available".to_string()))
+        }
+    }
+
     /// Process decode phase for a sequence.
     fn process_decode(&mut self, seq_id: SequenceId) -> Result<Option<GenerationOutput>> {
+        // Route to speculative or standard decode
+        if self.speculative_engine.is_some() {
+            self.process_decode_speculative(seq_id)
+        } else {
+            self.process_decode_standard(seq_id)
+        }
+    }
+
+    /// Standard decode: generate one token at a time.
+    fn process_decode_standard(&mut self, seq_id: SequenceId) -> Result<Option<GenerationOutput>> {
         let sequence = self
             .scheduler
             .get_sequence(seq_id)
@@ -346,7 +474,12 @@ impl LLMEngine {
 
         // Forward pass with all tokens, returning logits for last position
         let input_ids = Tensor::new(all_tokens.as_slice(), &self.device)?.unsqueeze(0)?;
-        let logits = self.model.forward(&input_ids, 0)?;
+
+        let logits = if let Some(ref mut model) = self.model {
+            model.forward(&input_ids, 0)?
+        } else {
+            return Err(Error::Config("No model available for standard decode".to_string()));
+        };
 
         // Sample next token
         let sampler = self
@@ -364,6 +497,52 @@ impl LLMEngine {
         let output = self.check_completion(seq_id, new_token)?;
 
         Ok(output)
+    }
+
+    /// Speculative decode: generate multiple tokens using draft-verify.
+    fn process_decode_speculative(&mut self, seq_id: SequenceId) -> Result<Option<GenerationOutput>> {
+        let sequence = self
+            .scheduler
+            .get_sequence(seq_id)
+            .ok_or(Error::SequenceNotFound(seq_id))?;
+
+        // Get all tokens
+        let all_tokens = sequence.all_token_ids().to_vec();
+        if all_tokens.is_empty() {
+            return Err(Error::Config("Sequence has no tokens".to_string()));
+        }
+
+        // Get sampling config for temperature
+        let sampling_config = self
+            .sampling_configs
+            .get(&seq_id)
+            .ok_or_else(|| Error::Config(format!("No sampling config for sequence {seq_id}")))?
+            .clone();
+
+        // Create input tensor
+        let input_ids = Tensor::new(all_tokens.as_slice(), &self.device)?.unsqueeze(0)?;
+
+        // Run speculative step
+        let spec_engine = self.speculative_engine.as_mut()
+            .ok_or_else(|| Error::Config("Speculative engine not available".to_string()))?;
+
+        let new_tokens = spec_engine.speculative_step(
+            &input_ids,
+            0,
+            sampling_config.temperature,
+        )?;
+
+        // Append all generated tokens and check for completion
+        for &token in &new_tokens {
+            self.scheduler.append_token(seq_id, token)?;
+
+            // Check for completion after each token
+            if let Some(output) = self.check_completion(seq_id, token)? {
+                return Ok(Some(output));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Check if a sequence should be finished.

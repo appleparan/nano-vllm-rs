@@ -255,9 +255,19 @@ impl SpeculativeEngine {
         &self.target_model
     }
 
+    /// Get mutable reference to the target model.
+    pub fn target_model_mut(&mut self) -> &mut Qwen3ForCausalLM {
+        &mut self.target_model
+    }
+
     /// Get reference to the draft model.
     pub fn draft_model(&self) -> &Qwen3ForCausalLM {
         &self.draft_model
+    }
+
+    /// Get mutable reference to the draft model.
+    pub fn draft_model_mut(&mut self) -> &mut Qwen3ForCausalLM {
+        &mut self.draft_model
     }
 }
 
