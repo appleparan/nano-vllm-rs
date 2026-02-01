@@ -5,8 +5,17 @@
 //! - Continuous batching for high throughput
 //! - Prefix caching for shared prompts
 //! - Speculative decoding for faster generation
+//!
+//! ## Educational Modes
+//!
+//! The crate includes educational modes for learning LLM inference:
+//! - **Narrator Mode**: Real-time plain-English commentary
+//! - **X-Ray Mode**: Mathematical/tensor visualizations
+//! - **Dashboard Mode**: Rich terminal UI with live updates
+//! - **Tutorial Mode**: Interactive step-by-step learning
 
 pub mod config;
+pub mod educational;
 pub mod error;
 
 pub mod attention;
@@ -25,3 +34,9 @@ pub use model::{
 };
 pub use scheduler::{Scheduler, SchedulerOutputs};
 pub use speculative::{RejectionSampler, SpeculativeConfig, SpeculativeEngine};
+
+// Educational mode re-exports
+pub use educational::{
+    EducationalConfig, InferenceNarrator, InteractiveTutorial, NarratorConfig, XRayConfig,
+    XRayVisualizer,
+};
