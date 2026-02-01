@@ -67,6 +67,23 @@ cargo test
   cargo test --all-features --workspace
   ```
 
+- Run integration tests (requires model download, ~1.2GB):
+
+  ```shell
+  # Run all integration tests with real Qwen3-0.6B model
+  cargo test --test qwen3_inference_test -- --ignored
+
+  # Run specific integration test
+  cargo test test_simple_generation -- --ignored
+
+  # Run all tests including integration tests
+  cargo test -- --include-ignored
+  ```
+
+  > **Note**: Integration tests are marked with `#[ignore]` and excluded from
+  > normal `cargo test` runs. They require network access to download the model
+  > from HuggingFace Hub and take several minutes to complete.
+
 - Check to see if there are code formatting issues
 
   ```shell
