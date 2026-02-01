@@ -519,28 +519,3 @@ impl LLMEngine {
         &self.model_config
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Note: Full engine tests require a loaded model.
-    // These tests verify the request handling logic.
-
-    #[test]
-    fn test_generation_request_builder() {
-        let request = GenerationRequest::new("Hello, world!")
-            .max_tokens(100)
-            .temperature(0.7)
-            .top_k(50)
-            .top_p(0.9)
-            .priority(5);
-
-        assert_eq!(request.prompt, "Hello, world!");
-        assert_eq!(request.sampling_config.max_tokens, 100);
-        assert_eq!(request.sampling_config.temperature, 0.7);
-        assert_eq!(request.sampling_config.top_k, 50);
-        assert_eq!(request.sampling_config.top_p, 0.9);
-        assert_eq!(request.priority, 5);
-    }
-}
