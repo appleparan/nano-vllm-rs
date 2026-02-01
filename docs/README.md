@@ -308,6 +308,7 @@ Memory-efficient attention algorithm that reduces memory from O(n²) to O(n).
 **Why this order?**
 
 With the standard attention working, Flash Attention provides a drop-in replacement that:
+
 - Uses O(n) memory instead of O(n²) for long sequences
 - Runs faster by reducing HBM access
 - Enables processing of much longer context lengths

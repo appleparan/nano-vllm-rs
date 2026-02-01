@@ -241,6 +241,7 @@
 ### Background
 
 Flash Attention은 Stanford에서 개발한 메모리 효율적 attention 알고리즘:
+
 - **메모리**: O(n²) → O(n) 감소 (attention matrix 전체 저장 불필요)
 - **속도**: HBM ↔ SRAM 간 IO 최소화로 2-4배 속도 향상
 - **Tiling**: attention을 block 단위로 계산하여 on-chip SRAM 활용
@@ -255,6 +256,7 @@ Flash Attention은 Stanford에서 개발한 메모리 효율적 attention 알고
 ### Tasks
 
 #### Phase 1: CPU Reference Implementation
+
 1. [x] `FlashAttentionConfig` 구조체
    - `block_size_q`, `block_size_kv`: Tiling 크기
    - `causal`: Causal masking 여부
@@ -267,27 +269,29 @@ Flash Attention은 Stanford에서 개발한 메모리 효율적 attention 알고
 4. [x] 표준 SDPA와 수치 일치 테스트
 
 #### Phase 2: Custom CUDA Kernel (RTX 4090)
-5. [x] CUDA 커널 빌드 환경 설정
+
+1. [x] CUDA 커널 빌드 환경 설정
    - `build.rs`에 CUDA 컴파일 추가 (cc crate with cuda feature)
    - SM80 (A100/3090) + SM89 (RTX 4090) 타겟
-6. [x] Flash Attention Forward 커널 (`kernels/flash_attn_fwd.cu`)
+2. [x] Flash Attention Forward 커널 (`kernels/flash_attn_fwd.cu`)
    - Shared memory tiling (Q, K, V 블록 로드)
    - Online softmax with running max/sum
    - FP32 및 FP16 버전 구현
-7. [ ] Flash Attention Backward 커널 (Optional - training용)
-8. [ ] Rust FFI 바인딩 (`src/attention/flash_cuda.rs`) - Deferred
+3. [ ] Flash Attention Backward 커널 (Optional - training용)
+4. [ ] Rust FFI 바인딩 (`src/attention/flash_cuda.rs`) - Deferred
    - cudarc 0.19 API 변경으로 인해 연기
    - 현재 GPU 텐서는 CPU fallback 사용
-9. [x] FP16 지원 (CUDA 커널에서 `__half` 타입 구현)
+5. [x] FP16 지원 (CUDA 커널에서 `__half` 타입 구현)
    - Tensor Cores 활용은 향후 최적화 예정
 
 #### Phase 3: Integration
-10. [x] `Qwen3Attention`에 Flash Attention 옵션 추가
-    - `use_flash_attention` 필드 및 생성자 파라미터
-    - `flash_attention_forward()` / `standard_attention_forward()` 분리
-11. [x] `EngineConfig`에 `use_flash_attention` 플래그 추가
-    - CLI에 `--flash-attention` 플래그 추가
-12. [ ] Benchmark: 표준 SDPA vs Flash Attention (seq_len 별)
+
+1. [x] `Qwen3Attention`에 Flash Attention 옵션 추가
+   - `use_flash_attention` 필드 및 생성자 파라미터
+   - `flash_attention_forward()` / `standard_attention_forward()` 분리
+2. [x] `EngineConfig`에 `use_flash_attention` 플래그 추가
+   - CLI에 `--flash-attention` 플래그 추가
+3. [ ] Benchmark: 표준 SDPA vs Flash Attention (seq_len 별)
 
 ### Algorithm (Flash Attention 2)
 
@@ -320,7 +324,7 @@ For each query block Q_i (parallelized):
 
 ### File Structure
 
-```
+```text
 src/attention/
 ├── mod.rs              # Module exports
 ├── paged.rs            # PagedAttention (existing)
@@ -390,6 +394,7 @@ fn main() {
 ### Background
 
 Speculative Decoding은 작은 draft 모델로 여러 토큰을 빠르게 생성하고, 큰 target 모델로 한번에 검증하여 처리량을 높이는 기법:
+
 - Draft 모델이 K개 토큰 생성 (빠름)
 - Target 모델이 K+1개 위치 동시 검증 (한번의 forward)
 - Rejection sampling으로 accept/reject 결정
