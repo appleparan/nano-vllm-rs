@@ -21,7 +21,7 @@ use tracing::{info, warn};
 
 use nano_vllm::{
     download_model, load_config, load_safetensors, EngineConfig, GenerationRequest, LLMEngine,
-    Qwen3ForCausalLM,
+    Qwen3ForCausalLM, SpeculativeConfig,
 };
 
 /// nano-vllm: A minimalistic LLM inference engine
@@ -80,6 +80,18 @@ struct Args {
     /// Number of KV cache blocks
     #[arg(long, default_value = "512")]
     num_blocks: usize,
+
+    /// Enable speculative decoding (requires --draft-model)
+    #[arg(long)]
+    speculative: bool,
+
+    /// Draft model for speculative decoding (e.g., "Qwen/Qwen3-0.6B")
+    #[arg(long, default_value = "Qwen/Qwen3-0.6B")]
+    draft_model: String,
+
+    /// Number of tokens to speculate per step
+    #[arg(long, default_value = "4")]
+    num_speculative_tokens: usize,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -136,10 +148,10 @@ fn main() -> anyhow::Result<()> {
     let vb = load_safetensors(&model_files.weights, dtype, &device)?;
     info!("Weights loaded in {:?}", start.elapsed());
 
-    // Create model
+    // Create target model
     info!("Creating Qwen3 model (flash_attention={})...", args.flash_attention);
     let start = Instant::now();
-    let model = Qwen3ForCausalLM::new(&config, args.flash_attention, vb)?;
+    let target_model = Qwen3ForCausalLM::new(&config, args.flash_attention, vb)?;
     info!("Model created in {:?}", start.elapsed());
 
     // Load tokenizer
@@ -159,9 +171,44 @@ fn main() -> anyhow::Result<()> {
         enable_preemption: false,
     };
 
-    // Create LLM engine
-    info!("Creating LLM engine...");
-    let mut engine = LLMEngine::new(model, config.clone(), tokenizer, engine_config)?;
+    // Create LLM engine (with or without speculative decoding)
+    let mut engine = if args.speculative {
+        info!("Speculative decoding enabled");
+        info!("Loading draft model: {} (revision: {})", args.draft_model, args.revision);
+
+        // Download and load draft model
+        let draft_files = download_model(&args.draft_model, &args.revision)?;
+        let draft_config = load_config(&draft_files.config)?;
+        info!(
+            "Draft model config: {} layers, hidden_size={}",
+            draft_config.num_hidden_layers, draft_config.hidden_size
+        );
+
+        let draft_vb = load_safetensors(&draft_files.weights, dtype, &device)?;
+        let draft_model = Qwen3ForCausalLM::new(&draft_config, args.flash_attention, draft_vb)?;
+        info!("Draft model loaded");
+
+        // Create speculative config
+        let speculative_config = SpeculativeConfig::new(&args.draft_model)
+            .num_tokens(args.num_speculative_tokens);
+
+        info!(
+            "Speculative config: K={} tokens per step",
+            speculative_config.num_speculative_tokens
+        );
+
+        LLMEngine::new_with_speculative(
+            target_model,
+            draft_model,
+            config.clone(),
+            tokenizer,
+            engine_config,
+            speculative_config,
+        )?
+    } else {
+        info!("Creating LLM engine...");
+        LLMEngine::new(target_model, config.clone(), tokenizer, engine_config)?
+    };
 
     // Add requests
     info!("Adding {} prompt(s)...", args.prompt.len());
@@ -225,10 +272,16 @@ fn main() -> anyhow::Result<()> {
     println!("════════════════════════════════════════════════════════════════");
     println!("{:^64}", "SUMMARY");
     println!("════════════════════════════════════════════════════════════════");
-    println!("  Prompts processed:     {}", outputs.len());
+    println!("  Prompts processed:      {}", outputs.len());
     println!("  Total tokens generated: {}", total_tokens);
-    println!("  Time:                  {:.2?}", elapsed);
-    println!("  Throughput:            {:.2} tokens/sec", tokens_per_sec);
+    println!("  Time:                   {:.2?}", elapsed);
+    println!("  Throughput:             {:.2} tokens/sec", tokens_per_sec);
+    if args.speculative {
+        println!("  Mode:                   Speculative (K={})", args.num_speculative_tokens);
+        println!("  Draft model:            {}", args.draft_model);
+    } else {
+        println!("  Mode:                   Standard");
+    }
     println!("════════════════════════════════════════════════════════════════");
 
     Ok(())
